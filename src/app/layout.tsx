@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
-import { EventBanner } from "@/components/EventBanner";
 
 const cinzel = Cinzel({
   variable: "--font-cinzel",
@@ -48,22 +45,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="de"
       className={`${cinzel.variable} ${cormorant.variable} ${inter.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col bg-cream text-ink">
-        <EventBanner />
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-      </body>
+      <body className="min-h-full flex flex-col bg-cream text-ink">{children}</body>
     </html>
   );
 }
