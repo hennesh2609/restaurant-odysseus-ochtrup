@@ -1,26 +1,146 @@
 @import "tailwindcss";
 
+/*
+  Odysseus – Corporate Design
+  Bordeaux/Weinrot + Creme, inspiriert vom Logo (Schiff & Mäandermuster).
+*/
+
+@theme {
+  --color-bordeaux: #7a2222;
+  --color-bordeaux-dark: #561414;
+  --color-bordeaux-light: #9a3636;
+  --color-cream: #f7eee1;
+  --color-cream-dark: #efe2cf;
+  --color-cream-deep: #e7d6bd;
+  --color-gold: #c19a4d;
+  --color-gold-light: #d9bd83;
+  --color-ink: #2c1a12;
+  --color-ink-soft: #5b463b;
+
+  --font-display: var(--font-cinzel);
+  --font-serif: var(--font-cormorant);
+  --font-sans: var(--font-inter);
+
+  --shadow-soft: 0 10px 40px -12px rgba(86, 20, 20, 0.25);
+  --shadow-card: 0 18px 50px -20px rgba(44, 26, 18, 0.35);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7eee1;
+  --foreground: #2c1a12;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display-/Überschriften */
+.font-display {
+  font-family: var(--font-display), serif;
+  letter-spacing: 0.04em;
+}
+.font-serif {
+  font-family: var(--font-serif), serif;
+}
+
+/* Griechischer Mäander – dekorative Trennlinie */
+.meander {
+  height: 22px;
+  width: 100%;
+  background-image: repeating-linear-gradient(
+    90deg,
+    currentColor 0 2px,
+    transparent 2px 12px
+  );
+  -webkit-mask-image: var(--meander-mask);
+  mask-image: var(--meander-mask);
+}
+
+/* Sanftes Einblenden beim Scrollen */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reveal {
+  opacity: 0;
+}
+.reveal.is-visible {
+  animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Sanft auf- und abwippender Scroll-Hinweis im Hero */
+@keyframes scrollHint {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(8px);
+    opacity: 1;
+  }
+}
+.animate-scroll-hint {
+  animation: scrollHint 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    animation: none;
+  }
+  .animate-scroll-hint {
+    animation: none;
+  }
+}
+
+/* Feiner goldener Trenn-Akzent */
+.rule-gold {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold) 20%,
+    var(--color-gold) 80%,
+    transparent
+  );
+}
+
+/* Hintergrund-Textur (subtiles Papier-/Leinengefühl) */
+.bg-paper {
+  background-color: var(--color-cream);
+  background-image:
+    radial-gradient(rgba(122, 34, 34, 0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* Horizontale Kategorie-Leiste ohne sichtbare Scrollbar */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+::selection {
+  background: var(--color-bordeaux);
+  color: var(--color-cream);
 }

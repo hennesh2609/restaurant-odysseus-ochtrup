@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Restaurant Odysseus – Website
 
-## Getting Started
+Moderne Website für das Restaurant Odysseus in Ochtrup mit Online-Reservierung,
+eigener Event-Seite (Deutsch-Griechische Nacht), kompletter Speisekarte und einer
+Admin-Übersicht für eingehende Reservierungen.
 
-First, run the development server:
+Gebaut mit **Next.js 16**, **React 19**, **Tailwind CSS v4** und optional **Supabase**.
+
+## Schnellstart (lokal)
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+→ http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Ohne weitere Konfiguration läuft alles sofort: Reservierungen werden in einer
+lokalen Datei (`data/reservations.json`) gespeichert. Ideal zum Ausprobieren.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Seiten
 
-## Learn More
+| Pfad | Inhalt |
+| --- | --- |
+| `/` | Startseite mit Hero, Highlights, Event-Teaser, Öffnungszeiten, Karte |
+| `/speisekarte` | Komplette Speisekarte (alle Kategorien & Preise) |
+| `/deutsch-griechische-nacht` | Event-Seite mit eigenem Reservierungsformular |
+| `/reservierung` | Tischreservierung |
+| `/kontakt` | Kontakt, Anfahrt, Öffnungszeiten |
+| `/impressum`, `/datenschutz` | Rechtliches (Entwürfe – bitte prüfen lassen) |
+| `/admin` | Passwortgeschützte Reservierungs-Übersicht fürs Restaurant |
 
-To learn more about Next.js, take a look at the following resources:
+## Inhalte pflegen
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Speisekarte:** `src/lib/menu.ts`
+- **Event-Daten (Datum, Preis, Programm):** `src/lib/event.ts`
+- **Stammdaten (Adresse, Telefon, Öffnungszeiten):** `src/lib/restaurant.ts`
+- **Bilder:** `src/lib/images.ts` – aktuell hochwertige Platzhalter (Unsplash).
+  Bitte durch echte Restaurant-Fotos ersetzen (URLs eintragen oder Dateien in
+  `public/images` ablegen). Logo & Schriftzug liegen bereits in `public/images`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Reservierungen produktiv schalten (Supabase)
 
-## Deploy on Vercel
+1. Projekt auf [supabase.com](https://supabase.com) anlegen.
+2. SQL aus `supabase/schema.sql` im SQL-Editor ausführen (legt die Tabelle an).
+3. `.env.local` anlegen (siehe `.env.example`) und ausfüllen:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API)
+   - `ADMIN_PASSWORD` (eigenes, sicheres Passwort für `/admin`)
+4. Server neu starten. Reservierungen landen ab jetzt in der Datenbank.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## E-Mail-Benachrichtigung (optional)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Über [Resend](https://resend.com) wird bei jeder neuen Reservierung eine E-Mail
+verschickt. In `.env.local`:
+
+- `RESEND_API_KEY` – API-Key von Resend
+- `NOTIFY_EMAIL` – Empfänger (vorerst: `Hennes.huewe@icloud.com`)
+- `NOTIFY_FROM` – verifizierte Absenderadresse
+
+Ohne `RESEND_API_KEY` wird jede Reservierung nur in der Server-Konsole geloggt
+(die Speicherung in der Datenbank/Datei funktioniert trotzdem).
+
+## Admin-Bereich
+
+`/admin` → Passwort = `ADMIN_PASSWORD` (Standard lokal: `odysseus-admin`).
+Dort lassen sich Reservierungen filtern, bestätigen und absagen.
+
+## Deployment
+
+Empfohlen: **Vercel**. Repository verbinden, die Umgebungsvariablen aus
+`.env.example` im Vercel-Dashboard eintragen, fertig. Anschließend die Domain
+`odysseus-ochtrup.de` in den Projekteinstellungen hinterlegen.
+
+## Hinweise
+
+- Impressum & Datenschutz sind inhaltliche Entwürfe und sollten vor dem
+  Live-Gang rechtlich geprüft werden.
+- Preise & Speisekarte wurden von der bisherigen Website übernommen.

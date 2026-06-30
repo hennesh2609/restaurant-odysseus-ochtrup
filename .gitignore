@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Lokaler Reservierungs-Speicher (Fallback ohne Supabase)
+/data/
+
+# Umgebungsvariablen
+.env
+.env.local
+
+# Claude Code Sitzungsdaten
+.claude/
+
+# Original-Bilder (Rohdaten, bearbeitet in public/images/)
+/Bilder/
+"Odysseus Logo.jpeg"
+"Odysseus Text .png"
