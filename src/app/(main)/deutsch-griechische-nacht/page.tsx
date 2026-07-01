@@ -124,20 +124,59 @@ export default function EventPage() {
               </div>
             </div>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-12 sm:gap-20">
+              <a
+                href="https://www.lbs-west.de"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="LBS Immobilien – Gebietsleitung Christoph Woltering"
+              >
+                <img
+                  src="/images/sponsoren/lbs-woltering.svg"
+                  alt="LBS Immobilien – Gebietsleitung Christoph Woltering"
+                  className="h-14 w-auto max-w-[160px] object-contain opacity-80 transition-opacity hover:opacity-100"
+                />
+              </a>
+              <a
+                href="https://www.krombacher.de"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Krombacher"
+              >
+                <img
+                  src="/images/sponsoren/krombacher.svg"
+                  alt="Krombacher"
+                  className="h-9 w-auto max-w-[200px] object-contain opacity-80 transition-opacity hover:opacity-100"
+                />
+              </a>
+              <a
+                href="https://www.getraenke-kock.de"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Getränke Kock"
+              >
+                <img
+                  src="/images/sponsoren/getraenke-kock.png"
+                  alt="Getränke Kock"
+                  className="h-14 w-auto max-w-[160px] object-contain opacity-80 transition-opacity hover:opacity-100"
+                />
+              </a>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* PLAKAT */}
+      <section className="bg-cream-dark">
+        <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+          <Reveal>
+            <p className="font-display text-sm tracking-[0.3em] text-bordeaux">
+              DAS PLAKAT 2026
+            </p>
+            <div className="mt-8 overflow-hidden rounded-2xl shadow-card">
               <img
-                src="/images/sponsoren/lbs-woltering.svg"
-                alt="LBS Immobilien – Gebietsleitung Christoph Woltering"
-                className="h-14 w-auto max-w-[160px] object-contain opacity-80 transition-opacity hover:opacity-100"
-              />
-              <img
-                src="/images/sponsoren/krombacher.svg"
-                alt="Krombacher"
-                className="h-9 w-auto max-w-[200px] object-contain opacity-80 transition-opacity hover:opacity-100"
-              />
-              <img
-                src="/images/sponsoren/getraenke-kock.png"
-                alt="Getränke Kock"
-                className="h-14 w-auto max-w-[160px] object-contain opacity-80 transition-opacity hover:opacity-100"
+                src="/images/plakat-dg-nacht-2026.jpg"
+                alt="Plakat Deutsch-Griechische Nacht 2026"
+                className="w-full object-contain"
               />
             </div>
           </Reveal>

@@ -70,11 +70,11 @@ export function Footer() {
       </div>
 
       <div className="border-t border-cream-dark/15">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-cream-dark/60 sm:flex-row sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-center text-xs text-cream-dark/60 sm:flex-row sm:px-6 sm:text-left">
           <p>
             © {new Date().getFullYear()} {restaurant.name}, {restaurant.city}
           </p>
-          <div className="flex flex-wrap gap-5">
+          <div className="flex flex-wrap justify-center gap-5 sm:justify-end">
             <Link href="/impressum" className="hover:text-cream hover:underline">
               Impressum
             </Link>
@@ -83,6 +83,22 @@ export function Footer() {
             </Link>
             <CookieSettingsLink />
           </div>
+        </div>
+        <div className="border-t border-cream-dark/10 px-4 py-3 text-center">
+          <a
+            href="https://novado-studio.de"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 opacity-40 transition-opacity hover:opacity-70"
+            aria-label="Webdesign by Novado Studio"
+          >
+            <span className="text-xs text-cream-dark">Webdesign</span>
+            <img
+              src="/images/novado-logo.svg"
+              alt="Novado Studio"
+              className="h-4 w-auto"
+            />
+          </a>
         </div>
       </div>
     </footer>
