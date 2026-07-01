@@ -9,9 +9,9 @@ export function Footer() {
       <MeanderStrip />
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-3">
         {/* Marke */}
-        <div>
+        <div className="text-center md:text-left">
           <p className="font-display text-2xl tracking-wide text-cream">ODYSSEUS</p>
-          <p className="mt-3 max-w-xs font-serif text-lg italic text-cream-dark/80">
+          <p className="mx-auto mt-3 max-w-xs font-serif text-lg italic text-cream-dark/80 md:mx-0">
             {restaurant.tagline}
           </p>
           <p className="mt-4 text-sm text-cream-dark/70">
@@ -20,7 +20,7 @@ export function Footer() {
         </div>
 
         {/* Kontakt */}
-        <div>
+        <div className="text-center md:text-left">
           <h3 className="font-display text-sm tracking-widest text-gold-light">
             KONTAKT
           </h3>
@@ -51,7 +51,7 @@ export function Footer() {
         </div>
 
         {/* Öffnungszeiten */}
-        <div>
+        <div className="text-center md:text-left">
           <h3 className="font-display text-sm tracking-widest text-gold-light">
             ÖFFNUNGSZEITEN
           </h3>

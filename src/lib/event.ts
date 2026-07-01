@@ -1,11 +1,11 @@
 // Deutsch-Griechische Nacht – zentrale Event-Daten.
 // Übernommen vom offiziellen Plakat 2026. Open-Air-Fest auf dem Kirchplatz
-// Ochtrup, präsentiert von Bäcker & Restaurant Odysseus.
+// Ochtrup, präsentiert von Bücker & Restaurant Odysseus.
 
 export const event = {
   title: "Deutsch-Griechische Nacht",
   edition: "Die 3. Ochtruper",
-  presentedBy: "Bäcker & Restaurant Odysseus präsentieren",
+  presentedBy: "Bücker & Restaurant Odysseus präsentieren",
 
   date: "Samstag, 22. August 2026",
   dateISO: "2026-08-22",
