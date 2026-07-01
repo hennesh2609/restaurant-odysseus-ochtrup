@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Meander } from "@/components/Meander";
 import { ContactForm } from "@/components/ContactForm";
+import { CookieMap } from "@/components/CookieMap";
 import { restaurant, openingHours } from "@/lib/restaurant";
 
 export const metadata: Metadata = {
@@ -35,14 +36,12 @@ export default async function KontaktPage({
         <div className="mt-12 grid gap-10 md:grid-cols-2">
           <div>
             <div className="overflow-hidden rounded-2xl border border-bordeaux/10 shadow-soft">
-              <iframe
+              <CookieMap
                 title="Standort Restaurant Odysseus"
                 src={`https://www.google.com/maps?q=${encodeURIComponent(
                   restaurant.mapsQuery
                 )}&output=embed`}
                 className="h-80 w-full"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
               />
             </div>
             <a

@@ -52,5 +52,5 @@ next-env.d.ts
 
 # Original-Bilder (Rohdaten, bearbeitet in public/images/)
 /Bilder/
-"Odysseus Logo.jpeg"
-"Odysseus Text .png"
+Odysseus Logo.jpeg
+Odysseus Text .png

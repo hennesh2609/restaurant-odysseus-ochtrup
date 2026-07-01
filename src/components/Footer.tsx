@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { restaurant, openingHours } from "@/lib/restaurant";
 import { MeanderStrip } from "./Meander";
+import { CookieSettingsLink } from "./CookieSettingsLink";
 
 export function Footer() {
   return (
@@ -73,13 +74,14 @@ export function Footer() {
           <p>
             © {new Date().getFullYear()} {restaurant.name}, {restaurant.city}
           </p>
-          <div className="flex gap-5">
+          <div className="flex flex-wrap gap-5">
             <Link href="/impressum" className="hover:text-cream hover:underline">
               Impressum
             </Link>
             <Link href="/datenschutz" className="hover:text-cream hover:underline">
               Datenschutz
             </Link>
+            <CookieSettingsLink />
           </div>
         </div>
       </div>

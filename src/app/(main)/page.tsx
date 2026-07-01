@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Reveal } from "@/components/Reveal";
 import { Meander, MeanderStrip } from "@/components/Meander";
 import { HeroZoom } from "@/components/HeroZoom";
+import { CookieMap } from "@/components/CookieMap";
 import { highlights } from "@/lib/menu";
 import { restaurant, openingHours } from "@/lib/restaurant";
 import { event } from "@/lib/event";
@@ -285,14 +286,12 @@ export default function Home() {
               />
             </div>
             <div className="mt-4 overflow-hidden rounded-2xl border border-bordeaux/10 shadow-soft">
-              <iframe
+              <CookieMap
                 title="Standort Restaurant Odysseus"
                 src={`https://www.google.com/maps?q=${encodeURIComponent(
                   restaurant.mapsQuery
                 )}&output=embed`}
                 className="h-72 w-full"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
               />
             </div>
             <address className="mt-6 not-italic text-ink-soft">
