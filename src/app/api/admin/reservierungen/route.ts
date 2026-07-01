@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { listReservations, updateReservationStatus } from "@/lib/reservations";
+import { listReservations, updateReservationStatus, getReservation } from "@/lib/reservations";
+import { confirmReservation } from "@/lib/notify";
 
 // Einfacher Token-Schutz. Setze ADMIN_PASSWORD in der Umgebung.
 // Für die lokale Entwicklung ist ein Standardwert hinterlegt.
@@ -36,7 +37,12 @@ export async function PATCH(request: Request) {
     if (!body.id || !body.status || !valid.includes(body.status)) {
       return NextResponse.json({ ok: false, error: "Ungültige Daten." }, { status: 400 });
     }
+    const prevStatus = (await getReservation(body.id))?.status;
     await updateReservationStatus(body.id, body.status as "neu" | "bestaetigt" | "abgesagt");
+    if (body.status === "bestaetigt" && prevStatus !== "bestaetigt") {
+      const reservation = await getReservation(body.id);
+      if (reservation) await confirmReservation(reservation);
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[Admin] Fehler beim Aktualisieren:", e);

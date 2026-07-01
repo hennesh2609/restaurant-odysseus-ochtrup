@@ -113,6 +113,17 @@ export async function listReservations(): Promise<Reservation[]> {
   return readFile();
 }
 
+export async function getReservation(id: string): Promise<Reservation | null> {
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase()!;
+    const { data, error } = await sb.from(TABLE).select("*").eq("id", id).single();
+    if (error || !data) return null;
+    return rowToReservation(data as Row);
+  }
+  const rows = await readFile();
+  return rows.find((r) => r.id === id) ?? null;
+}
+
 export async function updateReservationStatus(
   id: string,
   status: Reservation["status"]
@@ -126,4 +137,32 @@ export async function updateReservationStatus(
   const rows = await readFile();
   const next = rows.map((r) => (r.id === id ? { ...r, status } : r));
   await writeFile(next);
+}
+
+export async function markFollowupSent(id: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase()!;
+    await sb.from(TABLE).update({ followup_sent: true }).eq("id", id);
+    return;
+  }
+  const rows = await readFile();
+  await writeFile(rows.map((r) => (r.id === id ? { ...r, followup_sent: true } : r)));
+}
+
+export async function getReservationsForFollowup(date: string): Promise<Reservation[]> {
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase()!;
+    const { data, error } = await sb
+      .from(TABLE)
+      .select("*")
+      .eq("reserved_date", date)
+      .eq("status", "bestaetigt")
+      .eq("followup_sent", false);
+    if (error) return [];
+    return (data as Row[]).map(rowToReservation);
+  }
+  const rows = await readFile();
+  return rows.filter(
+    (r) => r.date === date && r.status === "bestaetigt"
+  );
 }

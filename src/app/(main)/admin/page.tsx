@@ -6,7 +6,9 @@ import type { ContactMessage } from "@/lib/messages";
 
 const STORAGE_KEY = "odysseus-admin-token";
 
-type Tab = "tisch" | "event" | "nachrichten";
+type Tab = "tisch" | "event" | "nachrichten" | "archiv";
+
+const todayISO = () => new Date().toISOString().split("T")[0];
 
 const statusLabels: Record<Reservation["status"], string> = {
   neu: "Neu",
@@ -146,14 +148,20 @@ export default function AdminPage() {
   }
 
   // ── Daten für Tabs ─────────────────────────────────────────────────────────
-  const tischRes = reservations.filter((r) => r.kind !== "event");
-  const eventRes = reservations.filter((r) => r.kind === "event");
+  const today = todayISO();
+  const allTischRes = reservations.filter((r) => r.kind !== "event");
+  const allEventRes = reservations.filter((r) => r.kind === "event");
+
+  // Aktiv = heute oder zukünftig; Archiv = vergangen
+  const tischRes = allTischRes.filter((r) => r.date >= today);
+  const eventRes = allEventRes.filter((r) => r.date >= today);
+  const archivRes = reservations.filter((r) => r.date < today);
 
   const tischNeu = tischRes.filter((r) => r.status === "neu").length;
   const eventNeu = eventRes.filter((r) => r.status === "neu").length;
   const msgNeu = messages.length;
 
-  const activeRes = tab === "tisch" ? tischRes : eventRes;
+  const activeRes = tab === "tisch" ? tischRes : tab === "event" ? eventRes : archivRes;
   const filteredRes = activeRes.filter(
     (r) => statusFilter === "alle" || r.status === statusFilter
   );
@@ -199,6 +207,7 @@ export default function AdminPage() {
               { key: "tisch", label: "Tischreservierungen", badge: tischNeu },
               { key: "event", label: "Griechische Nacht", badge: eventNeu },
               { key: "nachrichten", label: "Nachrichten", badge: msgNeu },
+              { key: "archiv", label: "Archiv", badge: 0 },
             ] as { key: Tab; label: string; badge: number }[]
           ).map(({ key, label, badge }) => (
             <button
@@ -222,12 +231,17 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* ── Reservierungen-Tab (Tisch + Event) ── */}
-        {(tab === "tisch" || tab === "event") && (
+        {/* ── Reservierungen-Tab (Tisch + Event + Archiv) ── */}
+        {(tab === "tisch" || tab === "event" || tab === "archiv") && (
           <div className="mt-6">
             {tab === "event" && (
               <div className="mb-5 rounded-xl border border-gold/30 bg-gold/10 px-5 py-3 text-sm text-bordeaux">
                 <strong>Event:</strong> Deutsch-Griechische Nacht · Samstag, 22. August 2026
+              </div>
+            )}
+            {tab === "archiv" && (
+              <div className="mb-5 rounded-xl border border-ink/10 bg-ink/5 px-5 py-3 text-sm text-ink-soft">
+                Vergangene Reservierungen (alle Arten) · schreibgeschützt
               </div>
             )}
 
