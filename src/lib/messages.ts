@@ -39,6 +39,27 @@ async function writeFile(rows: ContactMessage[]) {
   await fs.writeFile(DATA_FILE, JSON.stringify(rows, null, 2), "utf-8");
 }
 
+export async function listMessages(): Promise<ContactMessage[]> {
+  if (isSupabaseConfigured()) {
+    const sb = getSupabase()!;
+    const { data, error } = await sb
+      .from(TABLE)
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as { id: string; subject: string; name: string; email: string; phone: string | null; message: string; created_at: string }[]).map((r) => ({
+      id: r.id,
+      subject: r.subject,
+      name: r.name,
+      email: r.email,
+      phone: r.phone ?? undefined,
+      message: r.message,
+      createdAt: r.created_at,
+    }));
+  }
+  return readFile();
+}
+
 export async function createMessage(
   input: ContactInput
 ): Promise<ContactMessage> {
