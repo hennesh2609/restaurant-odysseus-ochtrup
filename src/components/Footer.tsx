@@ -84,19 +84,19 @@ export function Footer() {
             <CookieSettingsLink />
           </div>
         </div>
-        <div className="border-t border-cream-dark/10 px-4 py-3 text-center">
+        <div className="border-t border-cream-dark/10 px-4 py-4 text-center">
           <a
             href="https://novado-studio.de"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 opacity-40 transition-opacity hover:opacity-70"
+            className="inline-flex flex-col items-center gap-2 opacity-40 transition-opacity hover:opacity-70"
             aria-label="Webdesign by Novado Studio"
           >
-            <span className="text-xs text-cream-dark">Webdesign</span>
+            <span className="text-xs text-cream-dark">Webdesign by Novado Studio</span>
             <img
               src="/images/novado-logo.svg"
               alt="Novado Studio"
-              className="h-4 w-auto"
+              className="h-6 w-auto"
             />
           </a>
         </div>
