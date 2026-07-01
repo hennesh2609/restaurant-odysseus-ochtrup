@@ -3,7 +3,7 @@ import type { Reservation } from "./types";
 import type { ContactMessage } from "./messages";
 import { restaurant } from "./restaurant";
 
-const NOTIFY_TO = process.env.NOTIFY_EMAIL ?? "Hennes.huewe@icloud.com";
+const NOTIFY_TO = (process.env.NOTIFY_EMAIL ?? "hennes.huewe@icloud.com").toLowerCase();
 const FROM = process.env.NOTIFY_FROM ?? "Odysseus Website <onboarding@resend.dev>";
 const GOOGLE_REVIEW_URL =
   process.env.GOOGLE_REVIEW_URL ??
@@ -72,7 +72,7 @@ async function sendEmail(payload: {
       },
       body: JSON.stringify({
         from: FROM,
-        to: [payload.to],
+        to: [payload.to.trim().toLowerCase()],
         ...(payload.replyTo ? { reply_to: payload.replyTo } : {}),
         subject: payload.subject,
         html: payload.html,
