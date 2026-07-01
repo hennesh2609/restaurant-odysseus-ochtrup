@@ -86,7 +86,7 @@ export function Footer() {
         </div>
         <div className="border-t border-cream-dark/10 px-4 py-4 text-center">
           <a
-            href="https://novado-studio.de"
+            href="https://novadostudio.de"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex flex-col items-center gap-2 opacity-40 transition-opacity hover:opacity-70"
