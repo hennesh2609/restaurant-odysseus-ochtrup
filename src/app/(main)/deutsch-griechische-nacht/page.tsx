@@ -111,14 +111,34 @@ export default function EventPage() {
             </p>
           </Reveal>
 
-          <Reveal className="mt-12 text-center">
-            <p className="text-xs uppercase tracking-widest text-ink-soft/60">
-              Mit freundlicher Unterstützung von
-            </p>
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-serif text-lg text-ink-soft">
-              {event.sponsors.map((s) => (
-                <span key={s}>{s}</span>
-              ))}
+          {/* SPONSOREN */}
+          <Reveal className="mt-16">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center" aria-hidden>
+                <div className="w-full border-t border-bordeaux/15" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-paper px-5 font-display text-xs tracking-[0.25em] text-bordeaux/50">
+                  MIT FREUNDLICHER UNTERSTÜTZUNG VON
+                </span>
+              </div>
+            </div>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-12 sm:gap-20">
+              <img
+                src="/images/sponsoren/lbs-woltering.svg"
+                alt="LBS Immobilien – Gebietsleitung Christoph Woltering"
+                className="h-14 w-auto max-w-[160px] object-contain opacity-80 transition-opacity hover:opacity-100"
+              />
+              <img
+                src="/images/sponsoren/krombacher.svg"
+                alt="Krombacher"
+                className="h-9 w-auto max-w-[200px] object-contain opacity-80 transition-opacity hover:opacity-100"
+              />
+              <img
+                src="/images/sponsoren/getraenke-kock.png"
+                alt="Getränke Kock"
+                className="h-14 w-auto max-w-[160px] object-contain opacity-80 transition-opacity hover:opacity-100"
+              />
             </div>
           </Reveal>
         </div>
