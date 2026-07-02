@@ -22,6 +22,12 @@ const statusStyles: Record<Reservation["status"], string> = {
   abgesagt: "bg-red-100 text-red-700",
 };
 
+const statusDot: Record<Reservation["status"], string> = {
+  neu: "bg-amber-500",
+  bestaetigt: "bg-green-600",
+  abgesagt: "bg-red-500",
+};
+
 function formatDate(iso: string) {
   try {
     return new Date(iso + "T00:00:00").toLocaleDateString("de-DE", {
@@ -43,6 +49,19 @@ function formatDateTime(iso: string) {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function formatDateShort(iso: string) {
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("de-DE", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
     });
   } catch {
     return iso;
@@ -81,6 +100,10 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("tisch");
   const [statusFilter, setStatusFilter] = useState<"alle" | Reservation["status"]>("alle");
+
+  // Aufgeklappte Listeneinträge (kompakte Liste + Detail)
+  const [expandedRes, setExpandedRes] = useState<string | null>(null);
+  const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
 
   // Antwort-Editor (gebrandete Mail über Resend)
   const [composeFor, setComposeFor] = useState<string | null>(null);
@@ -268,12 +291,12 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="mt-8 flex gap-1 rounded-2xl bg-bordeaux/5 p-1">
+        {/* Tabs – mobil 2 Spalten, ab sm eine Reihe */}
+        <div className="mt-8 grid grid-cols-2 gap-1 rounded-2xl bg-bordeaux/5 p-1 sm:grid-cols-4">
           {(
             [
-              { key: "tisch", label: "Tischreservierungen", badge: tischNeu },
-              { key: "event", label: "Griechische Nacht", badge: eventNeu },
+              { key: "tisch", label: "Tische", badge: tischNeu },
+              { key: "event", label: "Event", badge: eventNeu },
               { key: "nachrichten", label: "Nachrichten", badge: msgNeu },
               { key: "archiv", label: "Archiv", badge: 0 },
             ] as { key: Tab; label: string; badge: number }[]
@@ -281,7 +304,7 @@ export default function AdminPage() {
             <button
               key={key}
               onClick={() => { setTab(key); setStatusFilter("alle"); }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
+              className={`flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-sm font-medium transition-all ${
                 tab === key
                   ? "bg-white shadow-soft text-bordeaux"
                   : "text-ink-soft hover:text-ink"
@@ -330,75 +353,104 @@ export default function AdminPage() {
               ))}
             </div>
 
-            <div className="mt-5 space-y-4">
+            <div className="mt-5 space-y-2">
               {filteredRes.length === 0 && (
                 <div className="rounded-2xl border border-bordeaux/10 bg-cream p-10 text-center text-ink-soft">
                   Keine Einträge in dieser Ansicht.
                 </div>
               )}
-              {filteredRes.map((r) => (
-                <div
-                  key={r.id}
-                  className="rounded-2xl border border-bordeaux/10 bg-cream p-5 shadow-soft"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-lg font-semibold text-ink">{r.name}</h3>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[r.status]}`}>
-                          {statusLabels[r.status]}
+              {filteredRes.map((r) => {
+                const open = expandedRes === r.id;
+                return (
+                  <div
+                    key={r.id}
+                    className="overflow-hidden rounded-xl border border-bordeaux/10 bg-cream shadow-soft"
+                  >
+                    {/* Kompakte Zeile */}
+                    <button
+                      onClick={() => setExpandedRes(open ? null : r.id)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                    >
+                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusDot[r.status]}`} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold text-ink">{r.name}</span>
+                        <span className="block text-xs text-ink-soft">
+                          {formatDateShort(r.date)}
+                          {r.time ? ` · ${r.time}` : ""} · {r.guests} Pers.
                         </span>
+                      </span>
+                      <span
+                        className={`hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${statusStyles[r.status]}`}
+                      >
+                        {statusLabels[r.status]}
+                      </span>
+                      <svg
+                        viewBox="0 0 20 20"
+                        className={`h-4 w-4 shrink-0 text-bordeaux transition-transform ${open ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+
+                    {/* Detailbereich */}
+                    {open && (
+                      <div className="border-t border-bordeaux/10 px-4 py-3">
+                        <div className="flex flex-col gap-0.5 text-sm">
+                          <a href={`tel:${r.phone}`} className="font-medium text-bordeaux hover:underline">
+                            {r.phone}
+                          </a>
+                          <a href={`mailto:${r.email}`} className="break-all text-ink-soft hover:underline">
+                            {r.email}
+                          </a>
+                          <span className="text-xs text-ink-soft/70">
+                            {formatDate(r.date)}
+                            {r.time ? `, ${r.time} Uhr` : ""} · {r.guests}{" "}
+                            {r.guests === 1 ? "Person" : "Personen"}
+                          </span>
+                        </div>
+
+                        {r.message && (
+                          <p className="mt-2 rounded-lg bg-bordeaux/5 p-3 text-sm text-ink-soft">
+                            „{r.message}"
+                          </p>
+                        )}
+
+                        {tab !== "archiv" && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              onClick={() => setStatus(r.id, "bestaetigt")}
+                              disabled={r.status === "bestaetigt"}
+                              className="rounded-full bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-40"
+                            >
+                              Bestätigen
+                            </button>
+                            <button
+                              onClick={() => setStatus(r.id, "abgesagt")}
+                              disabled={r.status === "abgesagt"}
+                              className="rounded-full bg-red-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+                            >
+                              Absagen
+                            </button>
+                            <button
+                              onClick={() => setStatus(r.id, "neu")}
+                              disabled={r.status === "neu"}
+                              className="rounded-full border border-bordeaux/30 px-4 py-1.5 text-xs font-semibold text-bordeaux hover:bg-bordeaux/10 disabled:opacity-40"
+                            >
+                              Als neu markieren
+                            </button>
+                          </div>
+                        )}
+                        <p className="mt-2 text-xs text-ink-soft/60">
+                          Eingegangen: {formatDateTime(r.createdAt)}
+                        </p>
                       </div>
-                      <p className="mt-1 text-sm text-ink-soft">
-                        {formatDate(r.date)}
-                        {r.time ? `, ${r.time} Uhr` : ""} · {r.guests}{" "}
-                        {r.guests === 1 ? "Person" : "Personen"}
-                      </p>
-                    </div>
-                    <div className="text-right text-sm">
-                      <a href={`tel:${r.phone}`} className="block font-medium text-bordeaux hover:underline">
-                        {r.phone}
-                      </a>
-                      <a href={`mailto:${r.email}`} className="block text-ink-soft hover:underline">
-                        {r.email}
-                      </a>
-                    </div>
+                    )}
                   </div>
-
-                  {r.message && (
-                    <p className="mt-3 rounded-lg bg-bordeaux/5 p-3 text-sm text-ink-soft">
-                      „{r.message}"
-                    </p>
-                  )}
-
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => setStatus(r.id, "bestaetigt")}
-                      disabled={r.status === "bestaetigt"}
-                      className="rounded-full bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-40"
-                    >
-                      Bestätigen
-                    </button>
-                    <button
-                      onClick={() => setStatus(r.id, "abgesagt")}
-                      disabled={r.status === "abgesagt"}
-                      className="rounded-full bg-red-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-40"
-                    >
-                      Absagen
-                    </button>
-                    <button
-                      onClick={() => setStatus(r.id, "neu")}
-                      disabled={r.status === "neu"}
-                      className="rounded-full border border-bordeaux/30 px-4 py-1.5 text-xs font-semibold text-bordeaux hover:bg-bordeaux/10 disabled:opacity-40"
-                    >
-                      Als neu markieren
-                    </button>
-                    <span className="ml-auto text-xs text-ink-soft/60">
-                      Eingegangen: {formatDateTime(r.createdAt)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -411,98 +463,125 @@ export default function AdminPage() {
                 Noch keine Nachrichten eingegangen.
               </div>
             )}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className="rounded-2xl border border-bordeaux/10 bg-cream p-5 shadow-soft"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-semibold text-ink">{m.name}</h3>
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        isApplication(m.subject)
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}>
-                        {isApplication(m.subject) ? "Bewerbung" : "Anfrage"}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-sm font-medium text-ink-soft">{m.subject}</p>
-                  </div>
-                  <div className="text-right text-sm">
-                    {m.phone && (
-                      <a href={`tel:${m.phone}`} className="block font-medium text-bordeaux hover:underline">
-                        {m.phone}
-                      </a>
-                    )}
-                    <a href={`mailto:${m.email}`} className="block text-ink-soft hover:underline">
-                      {m.email}
-                    </a>
-                  </div>
-                </div>
-
-                <p className="mt-3 rounded-lg bg-bordeaux/5 p-3 text-sm leading-relaxed text-ink-soft">
-                  {m.message}
-                </p>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+            {messages.map((m) => {
+              const open = expandedMsg === m.id;
+              const bewerbung = isApplication(m.subject);
+              return (
+                <div
+                  key={m.id}
+                  className="overflow-hidden rounded-xl border border-bordeaux/10 bg-cream shadow-soft"
+                >
+                  {/* Kompakte Zeile */}
                   <button
-                    onClick={() => (composeFor === m.id ? setComposeFor(null) : openCompose(m))}
-                    className="rounded-full bg-bordeaux px-4 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark"
+                    onClick={() => setExpandedMsg(open ? null : m.id)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left"
                   >
-                    Mit Vorlage antworten
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate font-semibold text-ink">{m.name}</span>
+                        {composeSent[m.id] && (
+                          <span className="shrink-0 text-xs font-semibold text-green-700">✓</span>
+                        )}
+                      </span>
+                      <span className="block truncate text-xs text-ink-soft">{m.subject}</span>
+                    </span>
+                    <span
+                      className={`hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${
+                        bewerbung ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {bewerbung ? "Bewerbung" : "Anfrage"}
+                    </span>
+                    <svg
+                      viewBox="0 0 20 20"
+                      className={`h-4 w-4 shrink-0 text-bordeaux transition-transform ${open ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
-                  <a
-                    href={vorlageMailto(m)}
-                    className="rounded-full border border-bordeaux/30 px-4 py-1.5 text-xs font-semibold text-bordeaux hover:bg-bordeaux/10"
-                  >
-                    Im eigenen Mailprogramm
-                  </a>
-                  {composeSent[m.id] && (
-                    <span className="text-xs font-semibold text-green-700">✓ Gesendet</span>
-                  )}
-                  <span className="ml-auto text-xs text-ink-soft/60">
-                    Eingegangen: {formatDateTime(m.createdAt)}
-                  </span>
-                </div>
 
-                {composeFor === m.id && (
-                  <div className="mt-3 rounded-xl border border-bordeaux/20 bg-white p-4">
-                    <p className="mb-2 text-xs text-ink-soft">
-                      Diese Nachricht wird als <strong>gestaltete Mail im Odysseus-Design</strong> an{" "}
-                      <strong>{m.email}</strong> versendet (Anrede, Logo und Fußzeile kommen automatisch).
-                    </p>
-                    <textarea
-                      value={composeText}
-                      onChange={(e) => setComposeText(e.target.value)}
-                      rows={6}
-                      autoFocus
-                      className="w-full rounded-lg border border-bordeaux/20 bg-paper px-3 py-2 text-sm outline-none focus:border-bordeaux focus:ring-1 focus:ring-bordeaux/30"
-                      placeholder="Ihre persönliche Antwort …"
-                    />
-                    {composeError && (
-                      <p className="mt-2 text-xs text-red-600">{composeError}</p>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        onClick={() => sendReply(m)}
-                        disabled={composeSending}
-                        className="rounded-full bg-bordeaux px-5 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark disabled:opacity-60"
-                      >
-                        {composeSending ? "Senden …" : "Gestaltete Mail senden"}
-                      </button>
-                      <button
-                        onClick={() => { setComposeFor(null); setComposeError(""); }}
-                        className="rounded-full border border-bordeaux/30 px-5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-bordeaux/5"
-                      >
-                        Abbrechen
-                      </button>
+                  {/* Detailbereich */}
+                  {open && (
+                    <div className="border-t border-bordeaux/10 px-4 py-3">
+                      <div className="flex flex-col gap-0.5 text-sm">
+                        {m.phone && (
+                          <a href={`tel:${m.phone}`} className="font-medium text-bordeaux hover:underline">
+                            {m.phone}
+                          </a>
+                        )}
+                        <a href={`mailto:${m.email}`} className="break-all text-ink-soft hover:underline">
+                          {m.email}
+                        </a>
+                      </div>
+
+                      <p className="mt-2 rounded-lg bg-bordeaux/5 p-3 text-sm leading-relaxed text-ink-soft">
+                        {m.message}
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => (composeFor === m.id ? setComposeFor(null) : openCompose(m))}
+                          className="rounded-full bg-bordeaux px-4 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark"
+                        >
+                          Mit Vorlage antworten
+                        </button>
+                        <a
+                          href={vorlageMailto(m)}
+                          className="rounded-full border border-bordeaux/30 px-4 py-1.5 text-xs font-semibold text-bordeaux hover:bg-bordeaux/10"
+                        >
+                          Im eigenen Mailprogramm
+                        </a>
+                        {composeSent[m.id] && (
+                          <span className="text-xs font-semibold text-green-700">✓ Gesendet</span>
+                        )}
+                      </div>
+
+                      {composeFor === m.id && (
+                        <div className="mt-3 rounded-xl border border-bordeaux/20 bg-white p-4">
+                          <p className="mb-2 text-xs text-ink-soft">
+                            Diese Nachricht wird als <strong>gestaltete Mail im Odysseus-Design</strong> an{" "}
+                            <strong>{m.email}</strong> versendet (Anrede, Logo und Fußzeile kommen automatisch).
+                          </p>
+                          <textarea
+                            value={composeText}
+                            onChange={(e) => setComposeText(e.target.value)}
+                            rows={6}
+                            autoFocus
+                            className="w-full rounded-lg border border-bordeaux/20 bg-paper px-3 py-2 text-sm outline-none focus:border-bordeaux focus:ring-1 focus:ring-bordeaux/30"
+                            placeholder="Ihre persönliche Antwort …"
+                          />
+                          {composeError && (
+                            <p className="mt-2 text-xs text-red-600">{composeError}</p>
+                          )}
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              onClick={() => sendReply(m)}
+                              disabled={composeSending}
+                              className="rounded-full bg-bordeaux px-5 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark disabled:opacity-60"
+                            >
+                              {composeSending ? "Senden …" : "Gestaltete Mail senden"}
+                            </button>
+                            <button
+                              onClick={() => { setComposeFor(null); setComposeError(""); }}
+                              className="rounded-full border border-bordeaux/30 px-5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-bordeaux/5"
+                            >
+                              Abbrechen
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="mt-2 text-xs text-ink-soft/60">
+                        Eingegangen: {formatDateTime(m.createdAt)}
+                      </p>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

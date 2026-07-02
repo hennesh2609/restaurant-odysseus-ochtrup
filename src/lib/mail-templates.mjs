@@ -25,7 +25,7 @@ const FONT = "Georgia, 'Cormorant Garamond', 'Times New Roman', serif";
 
 // Gemeinsames Grundgerüst (Header mit Logo, Gold-Linie, Body, Footer)
 // Mobile-Optimierung über Media-Query (Padding/Schriftgrößen) + robuste Tabellen.
-function shell({ preheader, eyebrow, heading, bodyHtml, headerBg = C.cream }) {
+function shell({ preheader, eyebrow, heading, bodyHtml, headerBg = C.bordeaux }) {
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -50,8 +50,8 @@ function shell({ preheader, eyebrow, heading, bodyHtml, headerBg = C.cream }) {
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(90,26,26,0.10)">
         <tr><td class="hpad" style="background:${headerBg};padding:26px 36px 20px;text-align:center">
-          <img src="${ASSET_BASE}/images/odysseus-schiff-logo.png" width="160" alt="Restaurant Odysseus" class="logo" style="display:inline-block;width:160px;max-width:58%;height:auto">
-          <div style="font-size:11px;letter-spacing:0.24em;color:${C.bordeaux};text-transform:uppercase;margin-top:12px;opacity:0.85">${eyebrow}</div>
+          <img src="${ASSET_BASE}/images/odysseus-logo-cream.png" width="170" alt="Restaurant Odysseus" class="logo" style="display:inline-block;width:170px;max-width:60%;height:auto">
+          <div style="font-size:11px;letter-spacing:0.24em;color:${C.gold};text-transform:uppercase;margin-top:10px">${eyebrow}</div>
         </td></tr>
         <tr><td style="background:${C.gold};height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>
         <tr><td class="bpad" style="padding:32px 36px">
@@ -122,7 +122,7 @@ const tischHtml = shell({
 // ── Template 2: Deutsch-Griechische Nacht – Bestätigung ─────────────────────
 const eventHtml = shell({
   preheader: "Ihre Plätze für die Deutsch-Griechische Nacht sind reserviert.",
-  headerBg: C.cream,
+  headerBg: C.bordeauxDark,
   eyebrow: "Die 3. Ochtruper · Deutsch-Griechische Nacht",
   heading: "Ihre Plätze sind reserviert",
   bodyHtml: `
