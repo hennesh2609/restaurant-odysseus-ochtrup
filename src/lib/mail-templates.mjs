@@ -24,6 +24,7 @@ const C = {
 const FONT = "Georgia, 'Cormorant Garamond', 'Times New Roman', serif";
 
 // Gemeinsames Grundgerüst (Header mit Logo, Gold-Linie, Body, Footer)
+// Mobile-Optimierung über Media-Query (Padding/Schriftgrößen) + robuste Tabellen.
 function shell({ preheader, eyebrow, heading, bodyHtml, headerBg = C.cream }) {
   return `<!doctype html>
 <html lang="de">
@@ -31,22 +32,33 @@ function shell({ preheader, eyebrow, heading, bodyHtml, headerBg = C.cream }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
+<style>
+  @media only screen and (max-width:600px) {
+    .card { border-radius:0 !important; }
+    .hpad { padding:22px 18px 14px !important; }
+    .bpad { padding:26px 20px !important; }
+    .fpad { padding:20px 18px !important; }
+    .title { font-size:20px !important; }
+    .logo { width:130px !important; }
+    .lbl { font-size:12px !important; }
+  }
+</style>
 </head>
 <body style="margin:0;padding:0;background:${C.paper};font-family:${FONT};color:${C.ink}">
   <span style="display:none;max-height:0;overflow:hidden;opacity:0">${preheader}</span>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.paper};padding:24px 12px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.paper};padding:24px 10px">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(90,26,26,0.10)">
-        <tr><td style="background:${headerBg};padding:26px 36px 20px;text-align:center">
-          <img src="${ASSET_BASE}/images/odysseus-logo.png" width="150" alt="Restaurant Odysseus" style="display:inline-block;width:150px;max-width:60%;height:auto">
-          <div style="font-size:11px;letter-spacing:0.26em;color:${C.bordeaux};text-transform:uppercase;margin-top:12px;opacity:0.85">${eyebrow}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(90,26,26,0.10)">
+        <tr><td class="hpad" style="background:${headerBg};padding:26px 36px 20px;text-align:center">
+          <img src="${ASSET_BASE}/images/odysseus-logo.png" width="150" alt="Restaurant Odysseus" class="logo" style="display:inline-block;width:150px;max-width:55%;height:auto">
+          <div style="font-size:11px;letter-spacing:0.24em;color:${C.bordeaux};text-transform:uppercase;margin-top:12px;opacity:0.85">${eyebrow}</div>
         </td></tr>
         <tr><td style="background:${C.gold};height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>
-        <tr><td style="padding:32px 36px">
-          <h1 style="margin:0 0 20px;font-size:23px;color:${C.bordeaux};line-height:1.3">${heading}</h1>
+        <tr><td class="bpad" style="padding:32px 36px">
+          <h1 class="title" style="margin:0 0 20px;font-size:23px;color:${C.bordeaux};line-height:1.3">${heading}</h1>
           ${bodyHtml}
         </td></tr>
-        <tr><td style="background:${C.creamSoft};border-top:1px solid ${C.line};padding:22px 36px;text-align:center">
+        <tr><td class="fpad" style="background:${C.creamSoft};border-top:1px solid ${C.line};padding:22px 36px;text-align:center">
           <div style="font-size:14px;color:${C.bordeaux};font-weight:bold">Restaurant Odysseus</div>
           <div style="font-size:12px;color:${C.inkSoft};margin-top:6px;line-height:1.7">
             Kniepenkamp 1 · 48607 Ochtrup<br>
@@ -65,15 +77,22 @@ function shell({ preheader, eyebrow, heading, bodyHtml, headerBg = C.cream }) {
 </html>`;
 }
 
+// Zwei-Spalten-Tabelle: Label (nicht umbrechend) links, Wert rechts (bricht sauber
+// innerhalb seiner Zelle um). Sieht auf Desktop und Smartphone gleichermaßen gut aus.
 function detailBox(rows, accent = C.bordeaux) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.creamSoft};border-left:4px solid ${accent};border-radius:0 8px 8px 0;margin:22px 0">
-    <tr><td style="padding:18px 22px">
-      ${rows
-        .map(
-          ([k, v]) =>
-            `<div style="margin:5px 0;font-size:15px;color:${C.ink}"><span style="display:inline-block;min-width:92px;color:${C.inkSoft};font-size:13px">${k}</span> <strong>${v}</strong></div>`
-        )
-        .join("")}
+    <tr><td style="padding:14px 22px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        ${rows
+          .map(
+            ([k, v]) =>
+              `<tr>
+          <td class="lbl" style="padding:6px 14px 6px 0;font-size:13px;color:${C.inkSoft};vertical-align:top;white-space:nowrap">${k}</td>
+          <td style="padding:6px 0;font-size:15px;color:${C.ink};font-weight:bold;vertical-align:top;line-height:1.4">${v}</td>
+        </tr>`
+          )
+          .join("")}
+      </table>
     </td></tr>
   </table>`;
 }

@@ -53,6 +53,25 @@ function isApplication(subject: string) {
   return subject.toLowerCase().includes("bewerbung");
 }
 
+// Öffnet das E-Mail-Programm mit vorformulierter, gebrandeter Antwort.
+// Der Text ist frei editierbar, bevor er aus dem eigenen Postfach versendet wird.
+function vorlageMailto(m: ContactMessage) {
+  const dank = isApplication(m.subject)
+    ? "vielen Dank für Ihre Bewerbung – wir haben Ihre Unterlagen erhalten."
+    : "vielen Dank für Ihre Nachricht.";
+  const body = `Liebe/r ${m.name},
+
+${dank}
+
+[Hier Ihre persönliche Antwort …]
+
+Herzliche Grüße
+Ihr Team vom Restaurant Odysseus
+Kniepenkamp 1 · 48607 Ochtrup
+Tel. 02553 1204 · info@odysseus-ochtrup.de`;
+  return `mailto:${m.email}?subject=${encodeURIComponent("Re: " + m.subject)}&body=${encodeURIComponent(body)}`;
+}
+
 export default function AdminPage() {
   const [token, setToken] = useState("");
   const [authed, setAuthed] = useState(false);
@@ -378,12 +397,18 @@ export default function AdminPage() {
                   {m.message}
                 </p>
 
-                <div className="mt-3 flex flex-wrap items-center gap-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <a
-                    href={`mailto:${m.email}?subject=Re: ${encodeURIComponent(m.subject)}`}
+                    href={vorlageMailto(m)}
                     className="rounded-full bg-bordeaux px-4 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark"
                   >
-                    Antworten
+                    Mit Vorlage antworten
+                  </a>
+                  <a
+                    href={`mailto:${m.email}?subject=Re: ${encodeURIComponent(m.subject)}`}
+                    className="rounded-full border border-bordeaux/30 px-4 py-1.5 text-xs font-semibold text-bordeaux hover:bg-bordeaux/10"
+                  >
+                    Leer antworten
                   </a>
                   <span className="ml-auto text-xs text-ink-soft/60">
                     Eingegangen: {formatDateTime(m.createdAt)}
