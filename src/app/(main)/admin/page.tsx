@@ -82,6 +82,13 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("tisch");
   const [statusFilter, setStatusFilter] = useState<"alle" | Reservation["status"]>("alle");
 
+  // Antwort-Editor (gebrandete Mail über Resend)
+  const [composeFor, setComposeFor] = useState<string | null>(null);
+  const [composeText, setComposeText] = useState("");
+  const [composeSending, setComposeSending] = useState(false);
+  const [composeError, setComposeError] = useState("");
+  const [composeSent, setComposeSent] = useState<Record<string, boolean>>({});
+
   const load = useCallback(async (t: string) => {
     setLoading(true);
     setError("");
@@ -130,6 +137,48 @@ export default function AdminPage() {
     setToken("");
     setReservations([]);
     setMessages([]);
+  }
+
+  function openCompose(m: ContactMessage) {
+    const dank = isApplication(m.subject)
+      ? "vielen Dank für Ihre Bewerbung – wir haben Ihre Unterlagen erhalten."
+      : "vielen Dank für Ihre Nachricht.";
+    setComposeFor(m.id);
+    setComposeError("");
+    setComposeText(`${dank}\n\n`);
+  }
+
+  async function sendReply(m: ContactMessage) {
+    if (!composeText.trim()) {
+      setComposeError("Bitte eine Nachricht eingeben.");
+      return;
+    }
+    setComposeSending(true);
+    setComposeError("");
+    try {
+      const res = await fetch("/api/admin/antwort", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({
+          to: m.email,
+          name: m.name,
+          betreff: m.subject,
+          nachricht: composeText,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setComposeError(data.error || "Versand fehlgeschlagen.");
+        return;
+      }
+      setComposeSent((prev) => ({ ...prev, [m.id]: true }));
+      setComposeFor(null);
+      setComposeText("");
+    } catch {
+      setComposeError("Verbindungsfehler.");
+    } finally {
+      setComposeSending(false);
+    }
   }
 
   // ── Login ──────────────────────────────────────────────────────────────────
@@ -398,22 +447,60 @@ export default function AdminPage() {
                 </p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <a
-                    href={vorlageMailto(m)}
+                  <button
+                    onClick={() => (composeFor === m.id ? setComposeFor(null) : openCompose(m))}
                     className="rounded-full bg-bordeaux px-4 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark"
                   >
                     Mit Vorlage antworten
-                  </a>
+                  </button>
                   <a
-                    href={`mailto:${m.email}?subject=Re: ${encodeURIComponent(m.subject)}`}
+                    href={vorlageMailto(m)}
                     className="rounded-full border border-bordeaux/30 px-4 py-1.5 text-xs font-semibold text-bordeaux hover:bg-bordeaux/10"
                   >
-                    Leer antworten
+                    Im eigenen Mailprogramm
                   </a>
+                  {composeSent[m.id] && (
+                    <span className="text-xs font-semibold text-green-700">✓ Gesendet</span>
+                  )}
                   <span className="ml-auto text-xs text-ink-soft/60">
                     Eingegangen: {formatDateTime(m.createdAt)}
                   </span>
                 </div>
+
+                {composeFor === m.id && (
+                  <div className="mt-3 rounded-xl border border-bordeaux/20 bg-white p-4">
+                    <p className="mb-2 text-xs text-ink-soft">
+                      Diese Nachricht wird als <strong>gestaltete Mail im Odysseus-Design</strong> an{" "}
+                      <strong>{m.email}</strong> versendet (Anrede, Logo und Fußzeile kommen automatisch).
+                    </p>
+                    <textarea
+                      value={composeText}
+                      onChange={(e) => setComposeText(e.target.value)}
+                      rows={6}
+                      autoFocus
+                      className="w-full rounded-lg border border-bordeaux/20 bg-paper px-3 py-2 text-sm outline-none focus:border-bordeaux focus:ring-1 focus:ring-bordeaux/30"
+                      placeholder="Ihre persönliche Antwort …"
+                    />
+                    {composeError && (
+                      <p className="mt-2 text-xs text-red-600">{composeError}</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => sendReply(m)}
+                        disabled={composeSending}
+                        className="rounded-full bg-bordeaux px-5 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark disabled:opacity-60"
+                      >
+                        {composeSending ? "Senden …" : "Gestaltete Mail senden"}
+                      </button>
+                      <button
+                        onClick={() => { setComposeFor(null); setComposeError(""); }}
+                        className="rounded-full border border-bordeaux/30 px-5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-bordeaux/5"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

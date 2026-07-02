@@ -50,7 +50,7 @@ function shell({ preheader, eyebrow, heading, bodyHtml, headerBg = C.cream }) {
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(90,26,26,0.10)">
         <tr><td class="hpad" style="background:${headerBg};padding:26px 36px 20px;text-align:center">
-          <img src="${ASSET_BASE}/images/odysseus-logo.png" width="150" alt="Restaurant Odysseus" class="logo" style="display:inline-block;width:150px;max-width:55%;height:auto">
+          <img src="${ASSET_BASE}/images/odysseus-schiff-logo.png" width="160" alt="Restaurant Odysseus" class="logo" style="display:inline-block;width:160px;max-width:58%;height:auto">
           <div style="font-size:11px;letter-spacing:0.24em;color:${C.bordeaux};text-transform:uppercase;margin-top:12px;opacity:0.85">${eyebrow}</div>
         </td></tr>
         <tr><td style="background:${C.gold};height:4px;line-height:4px;font-size:0">&nbsp;</td></tr>

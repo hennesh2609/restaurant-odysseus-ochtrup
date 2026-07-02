@@ -23,17 +23,19 @@ function formatDate(iso: string): string {
   }
 }
 
+export type SendResult = { ok: boolean; error?: string };
+
 // Versand über ein in Resend hinterlegtes Template (siehe scripts/setup-resend-templates.mjs).
 async function sendTemplate(opts: {
   to: string;
   templateId: string;
   variables: Record<string, string>;
   replyTo?: string;
-}): Promise<void> {
+}): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.log(`[E-Mail] (kein Key) → Template ${opts.templateId}`);
-    return;
+    return { ok: false, error: "Kein RESEND_API_KEY konfiguriert." };
   }
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -49,9 +51,15 @@ async function sendTemplate(opts: {
         template: { id: opts.templateId, variables: opts.variables },
       }),
     });
-    if (!res.ok) console.error("[Resend] Template-Fehler:", await res.text());
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error("[Resend] Template-Fehler:", detail);
+      return { ok: false, error: detail };
+    }
+    return { ok: true };
   } catch (e) {
     console.error("[Resend] Ausnahme:", e);
+    return { ok: false, error: String(e) };
   }
 }
 
@@ -154,21 +162,29 @@ export async function confirmReservation(r: Reservation): Promise<void> {
   });
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 // Allgemeine, gebrandete Antwort an einen Gast (Anfragen / Bewerbungen).
-// nachricht darf einfachen HTML-Text enthalten (z. B. <br> für Zeilenumbrüche).
+// Der freie Antworttext wird sicher escaped; Zeilenumbrüche werden zu Absätzen.
 export async function replyToGuest(opts: {
   to: string;
   name: string;
   betreff: string;
   nachricht: string;
-}): Promise<void> {
-  await sendTemplate({
+}): Promise<SendResult> {
+  const nachrichtHtml = escapeHtml(opts.nachricht.trim()).replace(/\n/g, "<br>");
+  return sendTemplate({
     to: opts.to,
     templateId: TEMPLATE_IDS.allgemein,
     variables: {
       KONTAKTPERSON: opts.name,
       BETREFF: opts.betreff,
-      NACHRICHT: opts.nachricht,
+      NACHRICHT: nachrichtHtml,
     },
     replyTo: restaurant.email,
   });
