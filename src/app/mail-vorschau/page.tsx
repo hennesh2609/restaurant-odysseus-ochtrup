@@ -1,64 +1,18 @@
 import type { Metadata } from "next";
-import type { Reservation } from "@/lib/types";
-import {
-  tischBestaetigung,
-  eventBestaetigung,
-  allgemeineAntwort,
-  allgemeineAntwortBeispiel,
-} from "@/lib/email-templates";
+import { TEMPLATES, renderPreview } from "@/lib/mail-templates.mjs";
 
 export const metadata: Metadata = {
   title: "E-Mail-Vorschau",
   robots: { index: false, follow: false },
 };
 
-// Beispiel-Daten nur für die Vorschau
-const tischBeispiel: Reservation = {
-  id: "preview-1",
-  kind: "restaurant",
-  name: "Familie Papadopoulos",
-  email: "gast@example.com",
-  phone: "0170 1234567",
-  date: "2026-08-15",
-  time: "19:30",
-  guests: 4,
-  createdAt: new Date().toISOString(),
-  status: "bestaetigt",
+const hints: Record<string, string> = {
+  tisch: "Geht an den Gast, sobald du im Admin auf „Bestätigen“ klickst.",
+  event: "Eigenes Design für Reservierungen zur Deutsch-Griechischen Nacht (mit Plakat).",
+  allgemein: "Flexible Vorlage für Rückmeldungen auf Anfragen und Bewerbungen.",
 };
 
-const eventBeispiel: Reservation = {
-  ...tischBeispiel,
-  id: "preview-2",
-  kind: "event",
-  name: "Familie Schmitz",
-  date: "2026-08-22",
-  guests: 6,
-};
-
-const templates = [
-  {
-    key: "tisch",
-    label: "1 · Tischreservierung – Bestätigung",
-    hint: "Geht an den Gast, sobald du im Admin auf „Bestätigen“ klickst.",
-    mail: tischBestaetigung(tischBeispiel),
-  },
-  {
-    key: "event",
-    label: "2 · Deutsch-Griechische Nacht – Bestätigung",
-    hint: "Eigenes Design für Event-Reservierungen.",
-    mail: eventBestaetigung(eventBeispiel),
-  },
-  {
-    key: "allgemein",
-    label: "3 · Allgemeine Antwort (Anfragen / Bewerbungen)",
-    hint: "Flexible Vorlage für Rückmeldungen auf Nachrichten.",
-    mail: allgemeineAntwort({
-      name: "Frau Müller",
-      betreff: "Ihre Bewerbung als Servicekraft",
-      nachricht: allgemeineAntwortBeispiel,
-    }),
-  },
-];
+const nummer: Record<string, string> = { tisch: "1", event: "2", allgemein: "3" };
 
 export default function MailVorschauPage() {
   return (
@@ -67,17 +21,18 @@ export default function MailVorschauPage() {
         E-Mail-Vorschau
       </h1>
       <p style={{ color: "#6b5555", marginBottom: 32, fontSize: 15 }}>
-        So sehen die automatischen E-Mails an die Gäste aus. Diese Seite ist nur
-        eine Vorschau (nicht öffentlich verlinkt, nicht indexiert).
+        So sehen die automatischen E-Mails an die Gäste aus. Diese Templates
+        liegen in Resend und werden real versendet. (Diese Vorschau ist nicht
+        öffentlich verlinkt und nicht bei Google indexiert.)
       </p>
 
-      {templates.map((t) => (
+      {TEMPLATES.map((t) => (
         <section key={t.key} style={{ marginBottom: 44 }}>
           <h2 style={{ fontSize: 17, color: "#2a1414", marginBottom: 2 }}>
-            {t.label}
+            {nummer[t.key]} · {t.name}
           </h2>
           <p style={{ color: "#6b5555", fontSize: 13, margin: "0 0 10px" }}>
-            {t.hint}
+            {hints[t.key]}
           </p>
           <div
             style={{
@@ -90,14 +45,14 @@ export default function MailVorschauPage() {
             }}
           >
             <strong style={{ color: "#2a1414" }}>Betreff:</strong>{" "}
-            {t.mail.subject}
+            {renderPreview(t.subject, t.sample)}
           </div>
           <iframe
-            title={t.label}
-            srcDoc={t.mail.html}
+            title={t.name}
+            srcDoc={renderPreview(t.html, t.sample)}
             style={{
               width: "100%",
-              height: 640,
+              height: t.key === "event" ? 900 : 640,
               border: "1px solid #e7dccb",
               borderTop: "none",
               borderRadius: "0 0 8px 8px",

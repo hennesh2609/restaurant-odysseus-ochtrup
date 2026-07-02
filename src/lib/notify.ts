@@ -2,13 +2,58 @@ import "server-only";
 import type { Reservation } from "./types";
 import type { ContactMessage } from "./messages";
 import { restaurant } from "./restaurant";
-import { tischBestaetigung, eventBestaetigung, allgemeineAntwort } from "./email-templates";
+import TEMPLATE_IDS from "./resend-template-ids.json";
 
 const NOTIFY_TO = (process.env.NOTIFY_EMAIL ?? "hennes.huewe@icloud.com").toLowerCase();
-const FROM = process.env.NOTIFY_FROM ?? "Odysseus Website <onboarding@resend.dev>";
+const FROM = process.env.NOTIFY_FROM ?? "Restaurant Odysseus <onboarding@resend.dev>";
 const GOOGLE_REVIEW_URL =
   process.env.GOOGLE_REVIEW_URL ??
   "https://g.page/r/PLACEHOLDER/review";
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("de-DE", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+// Versand über ein in Resend hinterlegtes Template (siehe scripts/setup-resend-templates.mjs).
+async function sendTemplate(opts: {
+  to: string;
+  templateId: string;
+  variables: Record<string, string>;
+  replyTo?: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.log(`[E-Mail] (kein Key) → Template ${opts.templateId}`);
+    return;
+  }
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: FROM,
+        to: [opts.to.trim().toLowerCase()],
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+        template: { id: opts.templateId, variables: opts.variables },
+      }),
+    });
+    if (!res.ok) console.error("[Resend] Template-Fehler:", await res.text());
+  } catch (e) {
+    console.error("[Resend] Ausnahme:", e);
+  }
+}
 
 function format(r: Reservation): { subject: string; html: string; text: string } {
   const kind =
@@ -87,29 +132,46 @@ async function sendEmail(payload: {
 }
 
 export async function confirmReservation(r: Reservation): Promise<void> {
-  const mail =
-    r.kind === "event" ? eventBestaetigung(r) : tischBestaetigung(r);
-  await sendEmail({
+  if (r.kind === "event") {
+    await sendTemplate({
+      to: r.email,
+      templateId: TEMPLATE_IDS.event,
+      variables: { KONTAKTPERSON: r.name, PERSONEN: String(r.guests) },
+      replyTo: restaurant.email,
+    });
+    return;
+  }
+  await sendTemplate({
     to: r.email,
-    subject: mail.subject,
-    html: mail.html,
-    text: mail.text,
+    templateId: TEMPLATE_IDS.tisch,
+    variables: {
+      KONTAKTPERSON: r.name,
+      DATUM: formatDate(r.date),
+      UHRZEIT: r.time,
+      PERSONEN: String(r.guests),
+    },
+    replyTo: restaurant.email,
   });
 }
 
 // Allgemeine, gebrandete Antwort an einen Gast (Anfragen / Bewerbungen).
+// nachricht darf einfachen HTML-Text enthalten (z. B. <br> für Zeilenumbrüche).
 export async function replyToGuest(opts: {
   to: string;
   name: string;
   betreff: string;
   nachricht: string;
 }): Promise<void> {
-  const mail = allgemeineAntwort({
-    name: opts.name,
-    betreff: opts.betreff,
-    nachricht: opts.nachricht,
+  await sendTemplate({
+    to: opts.to,
+    templateId: TEMPLATE_IDS.allgemein,
+    variables: {
+      KONTAKTPERSON: opts.name,
+      BETREFF: opts.betreff,
+      NACHRICHT: opts.nachricht,
+    },
+    replyTo: restaurant.email,
   });
-  await sendEmail({ to: opts.to, subject: mail.subject, html: mail.html, text: mail.text, replyTo: restaurant.email });
 }
 
 export async function sendReviewRequest(r: Reservation): Promise<void> {
