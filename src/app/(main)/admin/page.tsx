@@ -6,42 +6,51 @@ import type { ContactMessage } from "@/lib/messages";
 
 const STORAGE_KEY = "odysseus-admin-token";
 
-type Tab = "tisch" | "event" | "nachrichten" | "archiv";
+type View = "reservierungen" | "nachrichten" | "archiv";
+type Zeit = "alle" | "heute" | "morgen" | "woche";
+type StatusFilter = "alle" | Reservation["status"];
+type MsgFilter = "alle" | "anfrage" | "bewerbung";
 
-const todayISO = () => new Date().toISOString().split("T")[0];
+// ── Datums-Helfer (lokale Zeitzone) ─────────────────────────────────────────
+const localISO = (d = new Date()) => {
+  const t = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return t.toISOString().split("T")[0];
+};
+const addDaysISO = (iso: string, n: number) => {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return localISO(d);
+};
 
 const statusLabels: Record<Reservation["status"], string> = {
   neu: "Neu",
   bestaetigt: "Bestätigt",
   abgesagt: "Abgesagt",
 };
-
-const statusStyles: Record<Reservation["status"], string> = {
-  neu: "bg-amber-100 text-amber-800",
-  bestaetigt: "bg-green-100 text-green-800",
-  abgesagt: "bg-red-100 text-red-700",
+const statusPill: Record<Reservation["status"], string> = {
+  neu: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+  bestaetigt: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  abgesagt: "bg-rose-50 text-rose-600 ring-1 ring-rose-200",
 };
-
 const statusDot: Record<Reservation["status"], string> = {
   neu: "bg-amber-500",
-  bestaetigt: "bg-green-600",
-  abgesagt: "bg-red-500",
+  bestaetigt: "bg-emerald-500",
+  abgesagt: "bg-rose-400",
 };
 
-function formatDate(iso: string) {
+function fmtLong(iso: string) {
   try {
     return new Date(iso + "T00:00:00").toLocaleDateString("de-DE", {
-      weekday: "short",
+      weekday: "long",
       day: "2-digit",
-      month: "2-digit",
+      month: "long",
       year: "numeric",
     });
   } catch {
     return iso;
   }
 }
-
-function formatDateTime(iso: string) {
+function fmtDateTime(iso: string) {
   try {
     return new Date(iso).toLocaleString("de-DE", {
       day: "2-digit",
@@ -54,26 +63,26 @@ function formatDateTime(iso: string) {
     return iso;
   }
 }
-
-function formatDateShort(iso: string) {
-  try {
-    return new Date(iso + "T00:00:00").toLocaleDateString("de-DE", {
-      weekday: "short",
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
+function weekday(iso: string, opt: "short" | "long" = "short") {
+  return new Date(iso + "T00:00:00").toLocaleDateString("de-DE", { weekday: opt });
+}
+function dayMonth(iso: string) {
+  return new Date(iso + "T00:00:00").toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+function groupLabel(iso: string, today: string, tomorrow: string) {
+  const base = `${weekday(iso)}, ${dayMonth(iso)}`;
+  if (iso === today) return `Heute · ${base}`;
+  if (iso === tomorrow) return `Morgen · ${base}`;
+  return base;
 }
 
 function isApplication(subject: string) {
   return subject.toLowerCase().includes("bewerbung");
 }
 
-// Öffnet das E-Mail-Programm mit vorformulierter, gebrandeter Antwort.
-// Der Text ist frei editierbar, bevor er aus dem eigenen Postfach versendet wird.
 function vorlageMailto(m: ContactMessage) {
   const dank = isApplication(m.subject)
     ? "vielen Dank für Ihre Bewerbung – wir haben Ihre Unterlagen erhalten."
@@ -98,14 +107,17 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<Tab>("tisch");
-  const [statusFilter, setStatusFilter] = useState<"alle" | Reservation["status"]>("alle");
 
-  // Aufgeklappte Listeneinträge (kompakte Liste + Detail)
+  const [view, setView] = useState<View>("reservierungen");
+  const [zeit, setZeit] = useState<Zeit>("alle");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("alle");
+  const [nurEvent, setNurEvent] = useState(false);
+  const [dayFilter, setDayFilter] = useState<string | null>(null);
+  const [msgFilter, setMsgFilter] = useState<MsgFilter>("alle");
+
   const [expandedRes, setExpandedRes] = useState<string | null>(null);
   const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
 
-  // Antwort-Editor (gebrandete Mail über Resend)
   const [composeFor, setComposeFor] = useState<string | null>(null);
   const [composeText, setComposeText] = useState("");
   const [composeSending, setComposeSending] = useState(false);
@@ -128,7 +140,10 @@ export default function AdminPage() {
       }
       const resData = await resRes.json();
       const msgData = await msgRes.json();
-      if (!resData.ok) { setError(resData.error || "Fehler."); return; }
+      if (!resData.ok) {
+        setError(resData.error || "Fehler.");
+        return;
+      }
       setReservations(resData.reservations);
       if (msgData.ok) setMessages(msgData.messages);
       setAuthed(true);
@@ -142,7 +157,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved) { setToken(saved); load(saved); }
+    if (saved) {
+      setToken(saved);
+      load(saved);
+    }
   }, [load]);
 
   async function setStatus(id: string, status: Reservation["status"]) {
@@ -182,12 +200,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/antwort", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-admin-token": token },
-        body: JSON.stringify({
-          to: m.email,
-          name: m.name,
-          betreff: m.subject,
-          nachricht: composeText,
-        }),
+        body: JSON.stringify({ to: m.email, name: m.name, betreff: m.subject, nachricht: composeText }),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -207,14 +220,21 @@ export default function AdminPage() {
   // ── Login ──────────────────────────────────────────────────────────────────
   if (!authed) {
     return (
-      <section className="bg-paper">
-        <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-16">
-          <p className="font-display text-sm tracking-[0.3em] text-bordeaux">ODYSSEUS OCHTRUP</p>
-          <h1 className="mt-2 font-serif text-3xl font-semibold text-ink">Admin-Bereich</h1>
-          <p className="mt-2 text-ink-soft">Reservierungen, Nachrichten und Einstellungen.</p>
+      <section className="min-h-screen bg-stone-100">
+        <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-bordeaux">
+            Odysseus Ochtrup
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold text-stone-900">Betriebszentrale</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            Reservierungen, Nachrichten und Tagesplanung.
+          </p>
           <form
-            onSubmit={(e) => { e.preventDefault(); load(token); }}
-            className="mt-8 space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              load(token);
+            }}
+            className="mt-8 space-y-3"
           >
             <input
               type="password"
@@ -222,13 +242,13 @@ export default function AdminPage() {
               onChange={(e) => setToken(e.target.value)}
               placeholder="Passwort"
               autoFocus
-              className="w-full rounded-xl border border-bordeaux/20 bg-white px-4 py-3 outline-none focus:border-bordeaux focus:ring-1 focus:ring-bordeaux/30"
+              className="w-full rounded-lg border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none focus:border-bordeaux focus:ring-2 focus:ring-bordeaux/20"
             />
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-rose-600">{error}</p>}
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-full bg-bordeaux px-6 py-3 font-semibold text-cream hover:bg-bordeaux-dark disabled:opacity-60"
+              className="w-full rounded-lg bg-bordeaux px-6 py-3 font-semibold text-white transition hover:bg-bordeaux-dark disabled:opacity-60"
             >
               {loading ? "Anmelden …" : "Anmelden"}
             </button>
@@ -238,214 +258,571 @@ export default function AdminPage() {
     );
   }
 
-  // ── Daten für Tabs ─────────────────────────────────────────────────────────
-  const today = todayISO();
-  const allTischRes = reservations.filter((r) => r.kind !== "event");
-  const allEventRes = reservations.filter((r) => r.kind === "event");
+  // ── Ableitungen ─────────────────────────────────────────────────────────────
+  const today = localISO();
+  const tomorrow = addDaysISO(today, 1);
+  const weekEnd = addDaysISO(today, 6);
 
-  // Aktiv = heute oder zukünftig; Archiv = vergangen
-  const tischRes = allTischRes.filter((r) => r.date >= today);
-  const eventRes = allEventRes.filter((r) => r.date >= today);
-  const archivRes = reservations.filter((r) => r.date < today);
+  const upcoming = reservations.filter((r) => r.date >= today);
+  const upcomingActive = upcoming.filter((r) => r.status !== "abgesagt");
 
-  const tischNeu = tischRes.filter((r) => r.status === "neu").length;
-  const eventNeu = eventRes.filter((r) => r.status === "neu").length;
-  const msgNeu = messages.length;
+  const perDay = new Map<string, { count: number; guests: number; event: boolean }>();
+  for (const r of upcomingActive) {
+    const e = perDay.get(r.date) ?? { count: 0, guests: 0, event: false };
+    e.count += 1;
+    e.guests += r.guests;
+    if (r.kind === "event") e.event = true;
+    perDay.set(r.date, e);
+  }
 
-  const activeRes = tab === "tisch" ? tischRes : tab === "event" ? eventRes : archivRes;
-  const filteredRes = activeRes.filter(
-    (r) => statusFilter === "alle" || r.status === statusFilter
-  );
-  const counts = {
-    alle: activeRes.length,
-    neu: activeRes.filter((r) => r.status === "neu").length,
-    bestaetigt: activeRes.filter((r) => r.status === "bestaetigt").length,
-    abgesagt: activeRes.filter((r) => r.status === "abgesagt").length,
+  const kpi = {
+    heute: perDay.get(today) ?? { count: 0, guests: 0, event: false },
+    morgen: perDay.get(tomorrow) ?? { count: 0, guests: 0, event: false },
+    woche: upcomingActive.filter((r) => r.date <= weekEnd).length,
+    offen: upcoming.filter((r) => r.status === "neu").length,
+    bestaetigt: upcoming.filter((r) => r.status === "bestaetigt").length,
+    event: upcomingActive.filter((r) => r.kind === "event").length,
+    nachrichten: messages.length,
   };
 
-  // ── Layout ─────────────────────────────────────────────────────────────────
-  return (
-    <section className="min-h-screen bg-paper">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+  const next7 = Array.from({ length: 7 }, (_, i) => addDaysISO(today, i));
 
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="font-display text-xs tracking-[0.3em] text-bordeaux">ODYSSEUS OCHTRUP</p>
-            <h1 className="mt-1 font-serif text-3xl font-semibold text-ink">Admin-Bereich</h1>
+  // Reservierungsliste filtern
+  let list = reservations.filter((r) => (view === "archiv" ? r.date < today : r.date >= today));
+  if (view !== "archiv") {
+    if (dayFilter) list = list.filter((r) => r.date === dayFilter);
+    else if (zeit === "heute") list = list.filter((r) => r.date === today);
+    else if (zeit === "morgen") list = list.filter((r) => r.date === tomorrow);
+    else if (zeit === "woche") list = list.filter((r) => r.date <= weekEnd);
+  }
+  if (statusFilter !== "alle") list = list.filter((r) => r.status === statusFilter);
+  if (nurEvent) list = list.filter((r) => r.kind === "event");
+
+  list.sort((a, b) => {
+    if (a.date !== b.date) return view === "archiv" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date);
+    return (a.time || "").localeCompare(b.time || "");
+  });
+
+  const groups: { date: string; items: Reservation[] }[] = [];
+  for (const r of list) {
+    const g = groups.find((x) => x.date === r.date);
+    if (g) g.items.push(r);
+    else groups.push({ date: r.date, items: [r] });
+  }
+
+  // Nachrichten filtern
+  const msgList = messages.filter((m) =>
+    msgFilter === "alle"
+      ? true
+      : msgFilter === "bewerbung"
+      ? isApplication(m.subject)
+      : !isApplication(m.subject)
+  );
+
+  function resetFilters() {
+    setZeit("alle");
+    setStatusFilter("alle");
+    setNurEvent(false);
+    setDayFilter(null);
+  }
+
+  // KPI-Klick → passende Ansicht/Filter
+  function goto(target: "heute" | "morgen" | "woche" | "offen" | "bestaetigt" | "event" | "nachrichten") {
+    if (target === "nachrichten") {
+      setView("nachrichten");
+      return;
+    }
+    setView("reservierungen");
+    resetFilters();
+    if (target === "heute") setZeit("heute");
+    if (target === "morgen") setZeit("morgen");
+    if (target === "woche") setZeit("woche");
+    if (target === "offen") setStatusFilter("neu");
+    if (target === "bestaetigt") setStatusFilter("bestaetigt");
+    if (target === "event") setNurEvent(true);
+  }
+
+  const kpiCards: {
+    key: Parameters<typeof goto>[0];
+    label: string;
+    value: number;
+    sub?: string;
+    accent?: boolean;
+  }[] = [
+    { key: "heute", label: "Heute", value: kpi.heute.count, sub: `${kpi.heute.guests} Gäste` },
+    { key: "morgen", label: "Morgen", value: kpi.morgen.count, sub: `${kpi.morgen.guests} Gäste` },
+    { key: "woche", label: "Diese Woche", value: kpi.woche, sub: "7 Tage" },
+    { key: "offen", label: "Offen", value: kpi.offen, sub: "zu prüfen", accent: kpi.offen > 0 },
+    { key: "bestaetigt", label: "Bestätigt", value: kpi.bestaetigt, sub: "kommend" },
+    { key: "nachrichten", label: "Nachrichten", value: kpi.nachrichten, sub: "gesamt", accent: kpi.nachrichten > 0 },
+  ];
+
+  const chevron = (open: boolean) => (
+    <svg
+      viewBox="0 0 20 20"
+      className={`h-4 w-4 shrink-0 text-stone-400 transition-transform ${open ? "rotate-180" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+  const phoneIcon = (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">
+      <path d="M3.5 3.8c0-.5.4-.9.9-.9h2.1c.4 0 .8.3.9.7l.8 2.7c.1.4 0 .8-.3 1L6.6 8.4c.8 1.7 2.2 3.1 3.9 3.9l1.1-1.2c.3-.3.7-.4 1-.3l2.7.8c.4.1.7.5.7.9v2.1c0 .5-.4.9-.9.9C8.1 15.5 4.5 11.9 3.5 3.8Z" />
+    </svg>
+  );
+
+  // ── Layout ──────────────────────────────────────────────────────────────────
+  return (
+    <section className="min-h-screen bg-stone-100 text-stone-900">
+      {/* Kopfzeile */}
+      <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bordeaux">
+              Odysseus · Betriebszentrale
+            </p>
+            <p className="truncate text-sm text-stone-500">{fmtLong(today)}</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex shrink-0 gap-2">
             <button
               onClick={() => load(token)}
               disabled={loading}
-              className="rounded-full border border-bordeaux/30 px-5 py-2 text-sm font-medium text-bordeaux hover:bg-bordeaux/5 disabled:opacity-50"
+              className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
             >
-              {loading ? "Lädt …" : "Aktualisieren"}
+              {loading ? "…" : "Aktualisieren"}
             </button>
             <button
               onClick={logout}
-              className="rounded-full border border-bordeaux/30 px-5 py-2 text-sm font-medium text-ink-soft hover:bg-bordeaux/5"
+              className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-500 hover:bg-stone-50"
             >
               Abmelden
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Tabs – mobil 2 Spalten, ab sm eine Reihe */}
-        <div className="mt-8 grid grid-cols-2 gap-1 rounded-2xl bg-bordeaux/5 p-1 sm:grid-cols-4">
-          {(
-            [
-              { key: "tisch", label: "Tische", badge: tischNeu },
-              { key: "event", label: "Event", badge: eventNeu },
-              { key: "nachrichten", label: "Nachrichten", badge: msgNeu },
-              { key: "archiv", label: "Archiv", badge: 0 },
-            ] as { key: Tab; label: string; badge: number }[]
-          ).map(({ key, label, badge }) => (
+      <div className="mx-auto max-w-5xl px-4 py-5">
+        {/* KPI-Leiste */}
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+          {kpiCards.map((c) => (
             <button
-              key={key}
-              onClick={() => { setTab(key); setStatusFilter("alle"); }}
-              className={`flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-sm font-medium transition-all ${
-                tab === key
-                  ? "bg-white shadow-soft text-bordeaux"
-                  : "text-ink-soft hover:text-ink"
+              key={c.key}
+              onClick={() => goto(c.key)}
+              className={`rounded-xl border p-3 text-left transition hover:shadow-sm ${
+                c.accent
+                  ? "border-bordeaux/30 bg-bordeaux/5"
+                  : "border-stone-200 bg-white"
               }`}
             >
-              {label}
-              {badge > 0 && (
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                  tab === key ? "bg-bordeaux text-cream" : "bg-bordeaux/15 text-bordeaux"
-                }`}>
-                  {badge}
+              <div className="flex items-baseline gap-1.5">
+                <span className={`text-2xl font-semibold tabular-nums ${c.accent ? "text-bordeaux" : "text-stone-900"}`}>
+                  {c.value}
                 </span>
-              )}
+              </div>
+              <div className="mt-0.5 text-xs font-medium text-stone-600">{c.label}</div>
+              {c.sub && <div className="text-[11px] text-stone-400">{c.sub}</div>}
             </button>
           ))}
         </div>
 
-        {/* ── Reservierungen-Tab (Tisch + Event + Archiv) ── */}
-        {(tab === "tisch" || tab === "event" || tab === "archiv") && (
-          <div className="mt-6">
-            {tab === "event" && (
-              <div className="mb-5 rounded-xl border border-gold/30 bg-gold/10 px-5 py-3 text-sm text-bordeaux">
-                <strong>Event:</strong> Deutsch-Griechische Nacht · Samstag, 22. August 2026
-              </div>
+        {/* Ansichts-Umschalter */}
+        <div className="mt-5 flex gap-1 rounded-xl border border-stone-200 bg-white p-1">
+          {(
+            [
+              ["reservierungen", "Reservierungen"],
+              ["nachrichten", `Nachrichten${kpi.nachrichten ? ` (${kpi.nachrichten})` : ""}`],
+              ["archiv", "Archiv"],
+            ] as [View, string][]
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => {
+                setView(key);
+                resetFilters();
+              }}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                view === key ? "bg-bordeaux text-white" : "text-stone-600 hover:bg-stone-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Reservierungen ── */}
+        {(view === "reservierungen" || view === "archiv") && (
+          <div className="mt-4">
+            {view === "reservierungen" && (
+              <>
+                {/* Wochenstreifen */}
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                  {next7.map((iso) => {
+                    const d = perDay.get(iso);
+                    const active = dayFilter === iso;
+                    return (
+                      <button
+                        key={iso}
+                        onClick={() => {
+                          setDayFilter(active ? null : iso);
+                          setZeit("alle");
+                        }}
+                        className={`flex min-w-[64px] shrink-0 flex-col items-center rounded-xl border px-2 py-2 transition ${
+                          active
+                            ? "border-bordeaux bg-bordeaux text-white"
+                            : "border-stone-200 bg-white hover:border-stone-300"
+                        }`}
+                      >
+                        <span className={`text-[11px] uppercase ${active ? "text-white/80" : "text-stone-400"}`}>
+                          {weekday(iso)}
+                        </span>
+                        <span className="text-sm font-semibold">{dayMonth(iso)}</span>
+                        <span
+                          className={`mt-1 flex items-center gap-1 text-[11px] ${
+                            active ? "text-white/90" : "text-stone-500"
+                          }`}
+                        >
+                          {d?.event && (
+                            <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-gold-light" : "bg-gold"}`} />
+                          )}
+                          {d ? `${d.count}` : "–"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Filter-Chips */}
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  {(
+                    [
+                      ["alle", "Alle"],
+                      ["heute", "Heute"],
+                      ["morgen", "Morgen"],
+                      ["woche", "Woche"],
+                    ] as [Zeit, string][]
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setZeit(key);
+                        setDayFilter(null);
+                      }}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                        zeit === key && !dayFilter
+                          ? "bg-stone-900 text-white"
+                          : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <span className="mx-1 h-4 w-px bg-stone-200" />
+                  {(
+                    [
+                      ["alle", "Alle Status"],
+                      ["neu", "Neu"],
+                      ["bestaetigt", "Bestätigt"],
+                      ["abgesagt", "Abgesagt"],
+                    ] as [StatusFilter, string][]
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setStatusFilter(key)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                        statusFilter === key
+                          ? "bg-stone-900 text-white"
+                          : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setNurEvent((v) => !v)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                      nurEvent
+                        ? "bg-gold text-white"
+                        : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
+                    }`}
+                  >
+                    Nur Event
+                  </button>
+                </div>
+              </>
             )}
-            {tab === "archiv" && (
-              <div className="mb-5 rounded-xl border border-ink/10 bg-ink/5 px-5 py-3 text-sm text-ink-soft">
-                Vergangene Reservierungen (alle Arten) · schreibgeschützt
+
+            {view === "archiv" && (
+              <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm text-stone-500">
+                Vergangene Reservierungen · schreibgeschützt
               </div>
             )}
 
-            {/* Status-Filter */}
-            <div className="flex flex-wrap gap-2">
-              {(["alle", "neu", "bestaetigt", "abgesagt"] as const).map((f) => (
+            {/* Gruppierte Liste */}
+            <div className="mt-4 space-y-5">
+              {groups.length === 0 && (
+                <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center text-sm text-stone-400">
+                  Keine Reservierungen in dieser Ansicht.
+                </div>
+              )}
+              {groups.map((g) => {
+                const guests = g.items
+                  .filter((r) => r.status !== "abgesagt")
+                  .reduce((s, r) => s + r.guests, 0);
+                return (
+                  <div key={g.date}>
+                    <div className="mb-2 flex items-baseline justify-between">
+                      <h3 className="text-sm font-semibold text-stone-900">
+                        {groupLabel(g.date, today, tomorrow)}
+                      </h3>
+                      <span className="text-xs text-stone-400">
+                        {g.items.length} Res. · {guests} Gäste
+                      </span>
+                    </div>
+                    <div className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 bg-white">
+                      {g.items.map((r) => {
+                        const open = expandedRes === r.id;
+                        return (
+                          <div key={r.id}>
+                            <div className="flex items-center gap-2 px-3 py-2.5">
+                              <button
+                                onClick={() => setExpandedRes(open ? null : r.id)}
+                                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                              >
+                                <span className="w-12 shrink-0 text-sm font-semibold tabular-nums text-stone-900">
+                                  {r.time || "—"}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex items-center gap-1.5">
+                                    <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot[r.status]}`} />
+                                    <span className="truncate font-medium text-stone-900">{r.name}</span>
+                                  </span>
+                                  <span className="block truncate text-xs text-stone-500">
+                                    {r.guests} Pers.
+                                    {r.kind === "event" ? " · Event" : ""}
+                                    {r.message ? " · Hinweis" : ""}
+                                  </span>
+                                </span>
+                              </button>
+
+                              {view !== "archiv" && r.status === "neu" && (
+                                <button
+                                  onClick={() => setStatus(r.id, "bestaetigt")}
+                                  className="shrink-0 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                                >
+                                  ✓
+                                </button>
+                              )}
+                              <a
+                                href={`tel:${r.phone}`}
+                                className="shrink-0 rounded-lg border border-stone-200 p-1.5 text-stone-500 hover:bg-stone-50"
+                                aria-label="Anrufen"
+                              >
+                                {phoneIcon}
+                              </a>
+                              <button
+                                onClick={() => setExpandedRes(open ? null : r.id)}
+                                className="shrink-0 p-1"
+                                aria-label="Details"
+                              >
+                                {chevron(open)}
+                              </button>
+                            </div>
+
+                            {open && (
+                              <div className="border-t border-stone-100 bg-stone-50/60 px-3 py-3">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                                  <a href={`tel:${r.phone}`} className="font-medium text-bordeaux hover:underline">
+                                    {r.phone}
+                                  </a>
+                                  <a href={`mailto:${r.email}`} className="break-all text-stone-500 hover:underline">
+                                    {r.email}
+                                  </a>
+                                </div>
+                                <p className="mt-1 text-xs text-stone-400">
+                                  {fmtLong(r.date)}
+                                  {r.time ? `, ${r.time} Uhr` : ""} · {r.guests}{" "}
+                                  {r.guests === 1 ? "Person" : "Personen"}
+                                </p>
+                                {r.message && (
+                                  <p className="mt-2 rounded-lg bg-white p-3 text-sm text-stone-600 ring-1 ring-stone-200">
+                                    „{r.message}"
+                                  </p>
+                                )}
+                                {view !== "archiv" && (
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <button
+                                      onClick={() => setStatus(r.id, "bestaetigt")}
+                                      disabled={r.status === "bestaetigt"}
+                                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+                                    >
+                                      Bestätigen
+                                    </button>
+                                    <button
+                                      onClick={() => setStatus(r.id, "abgesagt")}
+                                      disabled={r.status === "abgesagt"}
+                                      className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-40"
+                                    >
+                                      Absagen
+                                    </button>
+                                    <button
+                                      onClick={() => setStatus(r.id, "neu")}
+                                      disabled={r.status === "neu"}
+                                      className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-white disabled:opacity-40"
+                                    >
+                                      Als neu
+                                    </button>
+                                    <span className={`ml-auto self-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusPill[r.status]}`}>
+                                      {statusLabels[r.status]}
+                                    </span>
+                                  </div>
+                                )}
+                                <p className="mt-2 text-[11px] text-stone-400">
+                                  Eingegangen: {fmtDateTime(r.createdAt)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Nachrichten ── */}
+        {view === "nachrichten" && (
+          <div className="mt-4">
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  ["alle", "Alle"],
+                  ["anfrage", "Anfragen"],
+                  ["bewerbung", "Bewerbungen"],
+                ] as [MsgFilter, string][]
+              ).map(([key, label]) => (
                 <button
-                  key={f}
-                  onClick={() => setStatusFilter(f)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                    statusFilter === f
-                      ? "bg-bordeaux text-cream"
-                      : "bg-bordeaux/10 text-bordeaux hover:bg-bordeaux/20"
+                  key={key}
+                  onClick={() => setMsgFilter(key)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    msgFilter === key
+                      ? "bg-stone-900 text-white"
+                      : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
                   }`}
                 >
-                  {f === "alle" ? "Alle" : statusLabels[f]} ({counts[f]})
+                  {label}
                 </button>
               ))}
             </div>
 
-            <div className="mt-5 space-y-2">
-              {filteredRes.length === 0 && (
-                <div className="rounded-2xl border border-bordeaux/10 bg-cream p-10 text-center text-ink-soft">
-                  Keine Einträge in dieser Ansicht.
-                </div>
+            <div className="mt-4 divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 bg-white">
+              {msgList.length === 0 && (
+                <div className="p-10 text-center text-sm text-stone-400">Keine Nachrichten.</div>
               )}
-              {filteredRes.map((r) => {
-                const open = expandedRes === r.id;
+              {msgList.map((m) => {
+                const open = expandedMsg === m.id;
+                const bewerbung = isApplication(m.subject);
                 return (
-                  <div
-                    key={r.id}
-                    className="overflow-hidden rounded-xl border border-bordeaux/10 bg-cream shadow-soft"
-                  >
-                    {/* Kompakte Zeile */}
+                  <div key={m.id}>
                     <button
-                      onClick={() => setExpandedRes(open ? null : r.id)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                      onClick={() => setExpandedMsg(open ? null : m.id)}
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left"
                     >
-                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusDot[r.status]}`} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold text-ink">{r.name}</span>
-                        <span className="block text-xs text-ink-soft">
-                          {formatDateShort(r.date)}
-                          {r.time ? ` · ${r.time}` : ""} · {r.guests} Pers.
-                        </span>
-                      </span>
                       <span
-                        className={`hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${statusStyles[r.status]}`}
+                        className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${
+                          bewerbung
+                            ? "bg-violet-50 text-violet-700 ring-1 ring-violet-200"
+                            : "bg-sky-50 text-sky-700 ring-1 ring-sky-200"
+                        }`}
                       >
-                        {statusLabels[r.status]}
+                        {bewerbung ? "Bewerbung" : "Anfrage"}
                       </span>
-                      <svg
-                        viewBox="0 0 20 20"
-                        className={`h-4 w-4 shrink-0 text-bordeaux transition-transform ${open ? "rotate-180" : ""}`}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className="truncate font-medium text-stone-900">{m.name}</span>
+                          {composeSent[m.id] && (
+                            <span className="shrink-0 text-xs font-semibold text-emerald-600">✓ beantwortet</span>
+                          )}
+                        </span>
+                        <span className="block truncate text-xs text-stone-500">{m.subject}</span>
+                      </span>
+                      {chevron(open)}
                     </button>
 
-                    {/* Detailbereich */}
                     {open && (
-                      <div className="border-t border-bordeaux/10 px-4 py-3">
-                        <div className="flex flex-col gap-0.5 text-sm">
-                          <a href={`tel:${r.phone}`} className="font-medium text-bordeaux hover:underline">
-                            {r.phone}
+                      <div className="border-t border-stone-100 bg-stone-50/60 px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                          {m.phone && (
+                            <a href={`tel:${m.phone}`} className="font-medium text-bordeaux hover:underline">
+                              {m.phone}
+                            </a>
+                          )}
+                          <a href={`mailto:${m.email}`} className="break-all text-stone-500 hover:underline">
+                            {m.email}
                           </a>
-                          <a href={`mailto:${r.email}`} className="break-all text-ink-soft hover:underline">
-                            {r.email}
+                        </div>
+                        <p className="mt-2 whitespace-pre-line rounded-lg bg-white p-3 text-sm leading-relaxed text-stone-600 ring-1 ring-stone-200">
+                          {m.message}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() => (composeFor === m.id ? setComposeFor(null) : openCompose(m))}
+                            className="rounded-lg bg-bordeaux px-3 py-1.5 text-xs font-semibold text-white hover:bg-bordeaux-dark"
+                          >
+                            Mit Vorlage antworten
+                          </button>
+                          <a
+                            href={vorlageMailto(m)}
+                            className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-white"
+                          >
+                            Im eigenen Mailprogramm
                           </a>
-                          <span className="text-xs text-ink-soft/70">
-                            {formatDate(r.date)}
-                            {r.time ? `, ${r.time} Uhr` : ""} · {r.guests}{" "}
-                            {r.guests === 1 ? "Person" : "Personen"}
+                          <span className="ml-auto text-[11px] text-stone-400">
+                            {fmtDateTime(m.createdAt)}
                           </span>
                         </div>
 
-                        {r.message && (
-                          <p className="mt-2 rounded-lg bg-bordeaux/5 p-3 text-sm text-ink-soft">
-                            „{r.message}"
-                          </p>
-                        )}
-
-                        {tab !== "archiv" && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                              onClick={() => setStatus(r.id, "bestaetigt")}
-                              disabled={r.status === "bestaetigt"}
-                              className="rounded-full bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-40"
-                            >
-                              Bestätigen
-                            </button>
-                            <button
-                              onClick={() => setStatus(r.id, "abgesagt")}
-                              disabled={r.status === "abgesagt"}
-                              className="rounded-full bg-red-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-40"
-                            >
-                              Absagen
-                            </button>
-                            <button
-                              onClick={() => setStatus(r.id, "neu")}
-                              disabled={r.status === "neu"}
-                              className="rounded-full border border-bordeaux/30 px-4 py-1.5 text-xs font-semibold text-bordeaux hover:bg-bordeaux/10 disabled:opacity-40"
-                            >
-                              Als neu markieren
-                            </button>
+                        {composeFor === m.id && (
+                          <div className="mt-3 rounded-lg border border-stone-200 bg-white p-3">
+                            <p className="mb-2 text-xs text-stone-500">
+                              Wird als <strong className="text-stone-700">gestaltete Mail im Odysseus-Design</strong> an{" "}
+                              <strong className="text-stone-700">{m.email}</strong> versendet.
+                            </p>
+                            <textarea
+                              value={composeText}
+                              onChange={(e) => setComposeText(e.target.value)}
+                              rows={6}
+                              autoFocus
+                              className="w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 text-sm outline-none focus:border-bordeaux focus:ring-2 focus:ring-bordeaux/20"
+                              placeholder="Ihre persönliche Antwort …"
+                            />
+                            {composeError && <p className="mt-2 text-xs text-rose-600">{composeError}</p>}
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <button
+                                onClick={() => sendReply(m)}
+                                disabled={composeSending}
+                                className="rounded-lg bg-bordeaux px-4 py-1.5 text-xs font-semibold text-white hover:bg-bordeaux-dark disabled:opacity-60"
+                              >
+                                {composeSending ? "Senden …" : "Gestaltete Mail senden"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setComposeFor(null);
+                                  setComposeError("");
+                                }}
+                                className="rounded-lg border border-stone-300 px-4 py-1.5 text-xs font-semibold text-stone-500 hover:bg-stone-50"
+                              >
+                                Abbrechen
+                              </button>
+                            </div>
                           </div>
                         )}
-                        <p className="mt-2 text-xs text-ink-soft/60">
-                          Eingegangen: {formatDateTime(r.createdAt)}
-                        </p>
                       </div>
                     )}
                   </div>
@@ -454,137 +831,6 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-
-        {/* ── Nachrichten-Tab ── */}
-        {tab === "nachrichten" && (
-          <div className="mt-6 space-y-4">
-            {messages.length === 0 && (
-              <div className="rounded-2xl border border-bordeaux/10 bg-cream p-10 text-center text-ink-soft">
-                Noch keine Nachrichten eingegangen.
-              </div>
-            )}
-            {messages.map((m) => {
-              const open = expandedMsg === m.id;
-              const bewerbung = isApplication(m.subject);
-              return (
-                <div
-                  key={m.id}
-                  className="overflow-hidden rounded-xl border border-bordeaux/10 bg-cream shadow-soft"
-                >
-                  {/* Kompakte Zeile */}
-                  <button
-                    onClick={() => setExpandedMsg(open ? null : m.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span className="truncate font-semibold text-ink">{m.name}</span>
-                        {composeSent[m.id] && (
-                          <span className="shrink-0 text-xs font-semibold text-green-700">✓</span>
-                        )}
-                      </span>
-                      <span className="block truncate text-xs text-ink-soft">{m.subject}</span>
-                    </span>
-                    <span
-                      className={`hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium sm:inline ${
-                        bewerbung ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {bewerbung ? "Bewerbung" : "Anfrage"}
-                    </span>
-                    <svg
-                      viewBox="0 0 20 20"
-                      className={`h-4 w-4 shrink-0 text-bordeaux transition-transform ${open ? "rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-
-                  {/* Detailbereich */}
-                  {open && (
-                    <div className="border-t border-bordeaux/10 px-4 py-3">
-                      <div className="flex flex-col gap-0.5 text-sm">
-                        {m.phone && (
-                          <a href={`tel:${m.phone}`} className="font-medium text-bordeaux hover:underline">
-                            {m.phone}
-                          </a>
-                        )}
-                        <a href={`mailto:${m.email}`} className="break-all text-ink-soft hover:underline">
-                          {m.email}
-                        </a>
-                      </div>
-
-                      <p className="mt-2 rounded-lg bg-bordeaux/5 p-3 text-sm leading-relaxed text-ink-soft">
-                        {m.message}
-                      </p>
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={() => (composeFor === m.id ? setComposeFor(null) : openCompose(m))}
-                          className="rounded-full bg-bordeaux px-4 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark"
-                        >
-                          Mit Vorlage antworten
-                        </button>
-                        <a
-                          href={vorlageMailto(m)}
-                          className="rounded-full border border-bordeaux/30 px-4 py-1.5 text-xs font-semibold text-bordeaux hover:bg-bordeaux/10"
-                        >
-                          Im eigenen Mailprogramm
-                        </a>
-                        {composeSent[m.id] && (
-                          <span className="text-xs font-semibold text-green-700">✓ Gesendet</span>
-                        )}
-                      </div>
-
-                      {composeFor === m.id && (
-                        <div className="mt-3 rounded-xl border border-bordeaux/20 bg-white p-4">
-                          <p className="mb-2 text-xs text-ink-soft">
-                            Diese Nachricht wird als <strong>gestaltete Mail im Odysseus-Design</strong> an{" "}
-                            <strong>{m.email}</strong> versendet (Anrede, Logo und Fußzeile kommen automatisch).
-                          </p>
-                          <textarea
-                            value={composeText}
-                            onChange={(e) => setComposeText(e.target.value)}
-                            rows={6}
-                            autoFocus
-                            className="w-full rounded-lg border border-bordeaux/20 bg-paper px-3 py-2 text-sm outline-none focus:border-bordeaux focus:ring-1 focus:ring-bordeaux/30"
-                            placeholder="Ihre persönliche Antwort …"
-                          />
-                          {composeError && (
-                            <p className="mt-2 text-xs text-red-600">{composeError}</p>
-                          )}
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                              onClick={() => sendReply(m)}
-                              disabled={composeSending}
-                              className="rounded-full bg-bordeaux px-5 py-1.5 text-xs font-semibold text-cream hover:bg-bordeaux-dark disabled:opacity-60"
-                            >
-                              {composeSending ? "Senden …" : "Gestaltete Mail senden"}
-                            </button>
-                            <button
-                              onClick={() => { setComposeFor(null); setComposeError(""); }}
-                              className="rounded-full border border-bordeaux/30 px-5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-bordeaux/5"
-                            >
-                              Abbrechen
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      <p className="mt-2 text-xs text-ink-soft/60">
-                        Eingegangen: {formatDateTime(m.createdAt)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
       </div>
     </section>
   );
