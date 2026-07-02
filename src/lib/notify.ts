@@ -2,6 +2,7 @@ import "server-only";
 import type { Reservation } from "./types";
 import type { ContactMessage } from "./messages";
 import { restaurant } from "./restaurant";
+import { tischBestaetigung, eventBestaetigung, allgemeineAntwort } from "./email-templates";
 
 const NOTIFY_TO = (process.env.NOTIFY_EMAIL ?? "hennes.huewe@icloud.com").toLowerCase();
 const FROM = process.env.NOTIFY_FROM ?? "Odysseus Website <onboarding@resend.dev>";
@@ -86,48 +87,29 @@ async function sendEmail(payload: {
 }
 
 export async function confirmReservation(r: Reservation): Promise<void> {
-  const isEvent = r.kind === "event";
-  const kindLabel = isEvent ? "Deutsch-Griechischen Nacht" : "Tischreservierung";
-  const dateFormatted = new Date(r.date + "T00:00:00").toLocaleDateString("de-DE", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-
-  const html = `
-    <div style="font-family:Georgia,serif;max-width:560px;margin:auto;color:#1a0a0a">
-      <div style="background:#7a2222;padding:24px 32px;border-radius:8px 8px 0 0">
-        <h1 style="margin:0;font-size:22px;color:#f5ead8;letter-spacing:0.05em">RESTAURANT ODYSSEUS</h1>
-        <p style="margin:4px 0 0;color:#d4a853;font-size:13px">Ochtrup</p>
-      </div>
-      <div style="background:#fff;padding:32px;border:1px solid #e8ddd0;border-top:none;border-radius:0 0 8px 8px">
-        <p style="font-size:16px;margin-top:0">Liebe/r ${r.name},</p>
-        <p>wir freuen uns, Ihre Reservierung für die <strong>${kindLabel}</strong> bestätigen zu dürfen.</p>
-        <div style="background:#f7eee1;border-left:4px solid #7a2222;padding:16px 20px;margin:20px 0;border-radius:0 6px 6px 0">
-          <p style="margin:0 0 6px"><strong>Datum:</strong> ${dateFormatted}</p>
-          ${!isEvent ? `<p style="margin:0 0 6px"><strong>Uhrzeit:</strong> ${r.time} Uhr</p>` : ""}
-          <p style="margin:0 0 6px"><strong>Personen:</strong> ${r.guests}</p>
-          <p style="margin:0"><strong>Ort:</strong> ${restaurant.name}, ${restaurant.street}, ${restaurant.zip} ${restaurant.city}</p>
-        </div>
-        <p>Bei Fragen oder Änderungen erreichen Sie uns jederzeit:</p>
-        <p>📞 <a href="tel:${restaurant.phoneHref}" style="color:#7a2222">${restaurant.phone}</a> &nbsp;|&nbsp; ✉️ <a href="mailto:${restaurant.email}" style="color:#7a2222">${restaurant.email}</a></p>
-        <p style="margin-top:24px">Wir freuen uns auf Sie!</p>
-        <p style="margin-bottom:0">Herzliche Grüße<br><strong>Ihr Team vom Restaurant Odysseus</strong></p>
-      </div>
-      <p style="color:#aaa;font-size:11px;text-align:center;margin-top:12px">
-        ${restaurant.name} · ${restaurant.street} · ${restaurant.zip} ${restaurant.city}
-      </p>
-    </div>`;
-
-  const text = `Liebe/r ${r.name},\n\nIhre Reservierung ist bestätigt:\n\nDatum: ${dateFormatted}\n${!isEvent ? `Uhrzeit: ${r.time} Uhr\n` : ""}Personen: ${r.guests}\n\nBei Fragen: ${restaurant.phone}\n\nHerzliche Grüße\nRestaurant Odysseus`;
-
+  const mail =
+    r.kind === "event" ? eventBestaetigung(r) : tischBestaetigung(r);
   await sendEmail({
     to: r.email,
-    subject: `Reservierungsbestätigung – ${restaurant.name}`,
-    html,
-    text,
+    subject: mail.subject,
+    html: mail.html,
+    text: mail.text,
   });
+}
+
+// Allgemeine, gebrandete Antwort an einen Gast (Anfragen / Bewerbungen).
+export async function replyToGuest(opts: {
+  to: string;
+  name: string;
+  betreff: string;
+  nachricht: string;
+}): Promise<void> {
+  const mail = allgemeineAntwort({
+    name: opts.name,
+    betreff: opts.betreff,
+    nachricht: opts.nachricht,
+  });
+  await sendEmail({ to: opts.to, subject: mail.subject, html: mail.html, text: mail.text, replyTo: restaurant.email });
 }
 
 export async function sendReviewRequest(r: Reservation): Promise<void> {
